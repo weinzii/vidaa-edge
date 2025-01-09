@@ -1,4 +1,5 @@
 export const environment = {
     production: true,
-    debug: false
+    debug: false,
+    jellyfinUrl: 'http://jellyfin.weinzi.com/',
 };

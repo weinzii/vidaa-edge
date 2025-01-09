@@ -5,8 +5,7 @@
 				<div class="flex h-16 items-center justify-between px-4 sm:px-0">
 					<div class="flex items-center">
 						<div class="shrink-0">
-							<!-- not supported by webkit? <h1 class="text-4xl font-extrabold bg-gradient-to-r from-purple-400 via-orange-400 to-purple-400 text-transparent bg-clip-text">VidaaEdge</h1> -->
-							 <img src="logo.png" alt="VidaaEdge" class="h-8 w-auto">
+							<img src="logo.png" alt="VidaaEdge" class="h-8 w-auto">
 						</div>
 						<div>
 							<div class="ml-10 flex items-baseline space-x-4">
@@ -16,7 +15,7 @@
 									aria-current="page">
 									Manage
 								</a>
-
+	
 								<a [routerLink]="'/documentation'" routerLinkActive="bg-orange-400/20 text-white"
 									class="rounded-md px-3 py-2 text-sm font-medium text-orange-500 hover:bg-orange-400/20 hover:text-white">
 									Documentation
@@ -24,10 +23,19 @@
 								<button (click)="openConsoleModal()" routerLinkActive="bg-orange-400/20 text-white"
 									class="rounded-md px-3 py-2 text-sm font-medium text-orange-500 hover:bg-orange-400/20 hover:text-white">
 									Console
-							</button>
+								</button>
 							</div>
 						</div>
 					</div>
+	
+					<div>
+						<a href="https://coindrop.to/weinzii" target="_blank">
+							<img src="https://coindrop.to/embed-button.png" 
+								style="border-radius: 10px; height: 38px; width: auto;" 
+								alt="Coindrop.to me">
+						</a>
+					</div>
+	
 					<div class="-mr-2 flex md:hidden">
 						<button type="button"
 							class="relative inline-flex items-center justify-center rounded-md bg-orange-800 p-2 text-orange-500 hover:bg-orange-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-orange-800"
@@ -48,6 +56,7 @@
 			</div>
 		</nav>
 	</div>
+	
 
 	<main class="-mt-32">
 		<div class="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">

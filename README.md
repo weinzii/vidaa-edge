@@ -1,5 +1,7 @@
 # VidaaEdge - Custom Apps for VidaaOS TVs
 
+[!["Drop me a Coin"](https://coindrop.to/embed-button.png)](https://coindrop.to/weinzii)
+
 This project provides a method to install custom [Progressive Web Apps (PWAs)](https://en.wikipedia.org/wiki/Progressive_Web_App) on your VidaaOS-based TV (e.g., Jellyfin, etc.). Before you start, ensure that the old [method](https://github.com/jellyfin/jellyfin-media-player/issues/250#issuecomment-1213673661) is no longer supported by your TV.
 
 Please note that this project is under development and may not work on all devices. **Use it at your own risk.**

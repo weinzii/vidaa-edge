@@ -13,7 +13,7 @@ Credits go to [BananaMafia](https://bananamafia.dev/post/hisensehax/) for discov
 - **Purpose:** Install and manage custom PWAs.  
 - **Status:** Experimental – use at your own risk.  
 
-For detailed installation and usage instructions, please refer to the [VidaaEdge Hosted Documentation](https://vidaahub.com).
+For detailed installation and usage instructions, please refer to the [VidaaEdge Hosted Documentation](https://vidaa.flummi.ch/).
 
 ## Features
 - Install and uninstall custom apps on VidaaOS TVs.  

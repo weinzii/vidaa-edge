@@ -1,8 +1,8 @@
 export default {
-  displayName: 'flummi',
+  displayName: 'vidaa-edge',
   preset: './jest.preset.js',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
-  coverageDirectory: './coverage/flummi',
+  coverageDirectory: './coverage/vidaa-edge',
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [
       'jest-preset-angular',

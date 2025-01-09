@@ -1,0 +1,25 @@
+<div class="relative mt-2 flex w-full max-w-md">
+  <div class="grid grow grid-cols-1 focus-within:relative">
+    <input type="text" [value]="value" readonly
+      class="block w-full rounded-l-md bg-customGray py-1.5 pl-3 pr-3 text-base text-gray-400 outline outline-1 -outline-offset-1 outline-gray-500 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-gray-500 sm:text-sm" />
+  </div>
+
+  <button type="button"
+    class="flex shrink-0 items-center gap-x-1.5 rounded-r-md bg-customGray px-3 py-2 text-sm font-semibold text-gray-400 outline outline-1 -outline-offset-1 outline-gray-500 hover:bg-customGray-light focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-gray-500"
+    (click)="copyToClipboard()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="-ml-0.5 h-4 w-4 text-gray-400">
+      <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="M12 11h4" />
+      <path d="M12 16h4" />
+      <path d="M8 11h.01" />
+      <path d="M8 16h.01" />
+    </svg>
+  </button>
+  <div
+    *ngIf="showTooltip"
+    class="absolute top-[-30px] right-0 bg-orange-500 text-gray-200 text-xs font-semibold px-2 py-1 rounded shadow-lg">
+    Copied!
+  </div>
+</div>

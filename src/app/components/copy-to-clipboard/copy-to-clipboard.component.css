@@ -1,0 +1,20 @@
+/* Tooltip Animation */
+@keyframes fadeInOut {
+    0% {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
+  
+  div[ngIf] {
+    animation: fadeInOut 2s ease-in-out;
+  }
+  

@@ -1,0 +1,52 @@
+@keyframes scaleDown {
+  0% {
+    opacity: 1;
+    -webkit-transform: scale(1); /* Safari/Chrome */
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    -webkit-transform: scale(0); /* Safari/Chrome */
+    transform: scale(0);
+  }
+}
+
+@keyframes slideInUp {
+  0% {
+    opacity: 0;
+    -webkit-transform: translateY(20%); /* Safari/Chrome */
+    transform: translateY(20%);
+  }
+
+  100% {
+    opacity: 1;
+    -webkit-transform: translateY(0); /* Safari/Chrome */
+    transform: translateY(0);
+  }
+}
+
+dialog[open]::backdrop {
+  background: rgba(0, 0, 0, 0.5); /* Fallback for unsupported browsers */
+  -webkit-backdrop-filter: blur(5px); /* Safari */
+  backdrop-filter: blur(5px); /* Modern browsers */
+}
+
+
+@media (prefers-reduced-motion: no-preference) {
+  #modal {
+    opacity: 0;
+    -webkit-transform: scale(0.9); /* Safari/Chrome */
+    transform: scale(0.9);
+  }
+
+  #modal.showing {
+    -webkit-animation: slideInUp 0.3s ease-out forwards; /* Safari/Chrome */
+    animation: slideInUp 0.3s ease-out forwards;
+  }
+
+  #modal.closing {
+    -webkit-animation: scaleDown 0.3s ease-in forwards; /* Safari/Chrome */
+    animation: scaleDown 0.3s ease-in forwards;
+  }
+}

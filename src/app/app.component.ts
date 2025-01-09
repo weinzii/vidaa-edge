@@ -1,13 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { NxWelcomeComponent } from './nx-welcome.component';
+import { ConsoleModalComponent } from "./components/console-modal/console-modal.component";
 
 @Component({
-  imports: [NxWelcomeComponent, RouterModule],
+  imports: [RouterModule, ConsoleModalComponent, ConsoleModalComponent],
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  title = 'flummi';
+  @ViewChild(ConsoleModalComponent) consoleModalComponent!: ConsoleModalComponent;
+
+  constructor() { }
+
+  openConsoleModal(): void {
+    this.consoleModalComponent.openModal();
+  }
 }

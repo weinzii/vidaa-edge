@@ -53,5 +53,5 @@
       "unitTestRunner": "jest"
     }
   },
-  "defaultProject": "flummi"
+  "defaultProject": "vidaa-edge"
 }

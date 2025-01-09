@@ -1,0 +1,26 @@
+@if(vidaaDevice){
+    <app-grid-list></app-grid-list>
+} @else {
+    <div class="w-full bg-purple-900 p-6 rounded-md border-l-4 border-purple-700">
+        <h2 class="text-2xl font-bold text-purple-200">Hello there</h2>
+        <p class="text-orange-700 mt-2">
+          No VidaaOS device detected, see console.
+        </p>
+      </div>
+      
+      <div class="flex flex-col gap-4 pt-4">
+        <div class="w-full flex flex-col gap-4 bg-customGray-light p-6 rounded-md border border-gray-700">
+          <div class="flex flex-col gap-2">
+            <h3 class="text-xl font-semibold text-gray-100">
+              First time visiting?
+            </h3>
+            <p class="text-sm text-gray-400">
+                To get started, see the <a [routerLink]="['/documentation']" routerLinkActive="router-link-active"  class="text-blue-500 hover:underline">documentation</a> for a step-by-step guide or to learn more about the project.
+            </p>
+          <br>
+          <p class="text-sm text-gray-400">
+          </p>
+          </div>
+        </div>
+      </div>
+}

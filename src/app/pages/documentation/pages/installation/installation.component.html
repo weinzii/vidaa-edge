@@ -1,0 +1,60 @@
+<div class="w-full bg-purple-900 p-6 rounded-lg shadow-md border-l-4 border-purple-700">
+  <h2 class="text-2xl font-bold text-purple-200">VidaaEdge - Custom Installation</h2>
+  <p class="text-gray-300 mt-3 leading-relaxed">
+    Follow the steps below to configure your VidaaOS-based TV and install or uninstall custom apps.
+  </p>
+</div>
+
+<div class="flex flex-col gap-6 pt-6">
+  <div class="w-full flex flex-col gap-6 bg-customGray-light p-8 rounded-lg shadow-md border border-gray-700">
+    <h3 class="text-3xl font-bold text-gray-200 border-b border-gray-600 pb-4">Installing Apps</h3>
+    <div class="flex flex-col gap-2 bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
+      <h4 class="text-lg font-semibold text-gray-200">1: Open VidaaHub</h4>
+      <p class="text-sm text-gray-400 leading-relaxed">
+        Open the browser on your TV and navigate to:
+        <code class="font-semibold">https://vidaahub.com</code>.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-2 bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
+      <h4 class="text-lg font-semibold text-gray-200">2: Install/Uninstall Apps</h4>
+      <p class="text-sm text-gray-400 leading-relaxed">
+        Use the interface to install or uninstall apps. For unavailable apps in the overview, use the "+" button to add
+        the app manually by entering the following details:
+      </p>
+      <ul class="list-disc list-inside text-sm text-gray-400">
+        <li><strong>App Name:</strong> e.g., Jellyfin</li>
+        <li><strong>App ID:</strong> Must be unique</li>
+        <li><strong>App Thumbnail URL:</strong> Logo of the App.</li>
+        <li><strong>App URL:</strong> URL of the app.</li>
+      </ul>
+      <p class="text-sm text-gray-400">
+        <strong>Tip:</strong> Use a smartphone for easier text entry.
+      </p>
+
+      <p class="text-xs text-gray-500">
+        The "Jellyfin" app is provided as an example for self-hosted installations. To use your custom Jellyfin instance, update the environment variable with your instance's URL. 
+        Hosted users, you can manually add your Jellyfin instance by using the (+) button.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-2 bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
+      <h4 class="text-lg font-semibold text-gray-200">3: Restart Your TV</h4>
+      <p class="text-sm text-gray-400 leading-relaxed">
+        After completing the installations or uninstallations, restart your TV. The apps will now be added or removed as
+        per your selection.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-4 bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
+      <h4 class="text-lg font-semibold text-red-500">Important Note</h4>
+      <p class="text-sm text-gray-400 leading-relaxed">
+        After completing the installations or uninstallations, you should:
+      </p>
+      <ul class="list-disc list-inside text-sm text-gray-400">
+        <li>Switch back to DHCP mode in your IP settings, OR</li>
+        <li>Re-enter your previous DNS server settings.</li>
+      </ul>
+    </div>
+  </div>
+</div>

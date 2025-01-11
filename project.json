@@ -14,7 +14,7 @@
         "outputPath": "dist/vidaa-edge",
         "index": "./src/index.html",
         "browser": "./src/main.ts",
-        "polyfills": ["zone.js"],
+        "polyfills": ["src/polyfills.ts"],
         "tsConfig": "tsconfig.app.json",
         "assets": [
           {

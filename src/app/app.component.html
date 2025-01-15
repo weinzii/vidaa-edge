@@ -1,71 +1,93 @@
 <div class="min-h-full">
-	<div class="pb-32 bg-purple-900">
-		<nav class="bg-purple-900">
-			<div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
-				<div class="flex items-center justify-between h-16 px-4 sm:px-0">
-					<div class="flex items-center">
-						<div class="shrink-0">
-							<img src="logo.png" alt="VidaaEdge" class="w-auto h-8">
-						</div>
-						<div>
-							<div class="flex items-baseline ml-10 space-x-4">
-								<a [routerLink]="'/'" routerLinkActive="bg-orange-400/20 text-white"
-									[routerLinkActiveOptions]="{ exact: true }"
-									class="px-3 py-2 text-sm font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white"
-									aria-current="page">
-									Manage
-								</a>
-	
-								<a [routerLink]="'/documentation'" routerLinkActive="bg-orange-400/20 text-white"
-									class="px-3 py-2 text-sm font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white">
-									Documentation
-								</a>
-								<button (click)="openConsoleModal()" routerLinkActive="bg-orange-400/20 text-white"
-									class="px-3 py-2 text-sm font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white">
-									Console
-								</button>
-							</div>
-						</div>
-					</div>
-	
-					<div>
-						<a href="https://coindrop.to/weinzii" target="_blank">
-							<img src="https://coindrop.to/embed-button.png" 
-								style="border-radius: 10px; height: 38px; width: auto;" 
-								alt="Coindrop.to me">
-						</a>
-					</div>
-	
-					<div class="flex -mr-2 md:hidden">
-						<button type="button"
-							class="relative inline-flex items-center justify-center p-2 text-orange-500 bg-orange-800 rounded-md hover:bg-orange-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-orange-800"
-							aria-controls="mobile-menu" aria-expanded="false">
-							<span class="absolute -inset-0.5"></span>
-							<svg class="block size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-								stroke="currentColor" aria-hidden="true" data-slot="icon">
-								<path stroke-linecap="round" stroke-linejoin="round"
-									d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-							</svg>
-							<svg class="hidden size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-								stroke="currentColor" aria-hidden="true" data-slot="icon">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
-				</div>
-			</div>
-		</nav>
-	</div>
-	
+    <div class="pb-32 bg-purple-900">
+        <nav class="bg-purple-900">
+            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16 px-4 sm:px-0">
+                    <!-- Logo Section -->
+                    <div class="flex items-center">
+                        <div class="shrink-0">
+                            <img src="logo.png" alt="VidaaEdge" class="w-auto h-8">
+                        </div>
+                        <!-- Navigation Links (hidden on small screens) -->
+                        <div class="hidden md:block">
+                            <div class="flex items-baseline ml-10 space-x-4">
+                                <a [routerLink]="'/'" routerLinkActive="bg-orange-400/20 text-white"
+                                    [routerLinkActiveOptions]="{ exact: true }"
+                                    class="px-3 py-2 text-sm font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white"
+                                    aria-current="page">
+                                    Manage
+                                </a>
+                                <a [routerLink]="'/documentation'" routerLinkActive="bg-orange-400/20 text-white"
+                                    class="px-3 py-2 text-sm font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white">
+                                    Documentation
+                                </a>
+                                <button (click)="openConsoleModal()" routerLinkActive="bg-orange-400/20 text-white"
+                                    class="px-3 py-2 text-sm font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white">
+                                    Console
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-	<main class="-mt-32">
-		<div class="px-4 pb-12 mx-auto max-w-7xl sm:px-6 lg:px-8">
-			<div class="px-5 py-6 rounded-lg shadow bg-customGray-light sm:px-6">
-				<router-outlet></router-outlet>
-			</div>
-		</div>
-	</main>
+                    <!-- Coindrop Section -->
+                    <div>
+                        <a href="https://coindrop.to/weinzii" target="_blank">
+                            <img src="https://coindrop.to/embed-button.png"
+                                style="border-radius: 10px; height: 38px; width: auto;" alt="Coindrop.to me">
+                        </a>
+                    </div>
+
+                    <!-- Mobile Menu Button -->
+                    <div class="flex md:hidden">
+                        <button (click)="toggleMobileMenu()"
+                            class="relative inline-flex items-center justify-center p-2 text-orange-500 bg-orange-800 rounded-md hover:bg-orange-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-orange-800">
+                            <span class="sr-only">Open main menu</span>
+                            <svg *ngIf="!isMobileMenuOpen" class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16m-7 6h7" />
+                            </svg>
+                            <svg *ngIf="isMobileMenuOpen" class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div *ngIf="isMobileMenuOpen" class="md:hidden">
+                <div class="px-2 pt-2 pb-3 space-y-1">
+                    <a [routerLink]="'/'" routerLinkActive="bg-orange-400/20 text-white"
+                        [routerLinkActiveOptions]="{ exact: true }"
+                        class="block px-3 py-2 text-base font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white"
+                        aria-current="page">
+                        Manage
+                    </a>
+                    <a [routerLink]="'/documentation'" routerLinkActive="bg-orange-400/20 text-white"
+                        class="block px-3 py-2 text-base font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white">
+                        Documentation
+                    </a>
+                    <button (click)="openConsoleModal()" routerLinkActive="bg-orange-400/20 text-white"
+                        class="block px-3 py-2 text-base font-medium text-orange-500 rounded-md hover:bg-orange-400/20 hover:text-white">
+                        Console
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    <main class="-mt-32">
+        <div class="px-4 pb-12 mx-auto max-w-7xl sm:px-6 lg:px-8">
+            <div class="px-5 py-6 rounded-lg shadow bg-customGray-light sm:px-6">
+                <router-outlet></router-outlet>
+            </div>
+        </div>
+    </main>
 </div>
+
 
 
 <footer class="py-6 bg-purple-900">

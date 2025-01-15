@@ -1,5 +1,5 @@
 <div class="w-full h-full">
-    <div class="px-12 mx-auto flex flex-col gap-4 py-10">
+    <div class="sm:px-12 mx-auto flex flex-col gap-4 py-10">
         <div class="w-full flex items-center justify-between pb-4">
             <h2 class="text-3xl font-semibold text-orange-500">Documentation</h2>
             <a href="https://github.com/weinzii/vidaa-edge" target="_blank" class="text-orange-500 hover:text-gray-300 flex items-center pt-2">
@@ -29,9 +29,9 @@
                             Hosted
                         </button>
                         <button [routerLink]="['/documentation/installation']"
-                        class="w-full text-left py-2 px-3 rounded-lg bg-customGray-light hover:bg-orange-800/20 text-orange-400">
-                        Apps
-                    </button>
+                            class="w-full text-left py-2 px-3 rounded-lg bg-customGray-light hover:bg-orange-800/20 text-orange-400">
+                            Apps
+                        </button>
                     </div>
                 </div>
                 <button [routerLink]="['/documentation/api']"
@@ -39,7 +39,6 @@
                     Hisense Vidaa API
                 </button>
             </div>
-
 
             <div class="w-full flex flex-col gap-6 px-4 py-6 bg-customGray rounded-lg shadow-md">
                 <router-outlet></router-outlet>

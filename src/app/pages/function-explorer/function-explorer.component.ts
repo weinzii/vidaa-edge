@@ -828,7 +828,7 @@ export class FunctionExplorerComponent implements OnInit {
     setTimeout(() => this.scanTvSecurityApis(), 500);
     // Auto-initialize remote handler for TV commands
     setTimeout(() => this.autoInitRemoteHandler(), 1000);
-    
+
     // Listen for remote handler status updates
     window.addEventListener('remoteHandlerStatus', (event: any) => {
       const { message, type } = event.detail;
@@ -1721,7 +1721,7 @@ export class FunctionExplorerComponent implements OnInit {
     // Automatically initialize remote handler on page load
     const hostname = window.location.hostname;
     let serverHost = 'vidaahub.com';
-    
+
     // Use same logic as getDefaultServerEndpoint
     if (hostname === 'vidaahub.com' || hostname.endsWith('.vidaahub.com')) {
       serverHost = 'vidaahub.com';
@@ -1731,7 +1731,7 @@ export class FunctionExplorerComponent implements OnInit {
         serverHost = match[1];
       }
     }
-    
+
     this.showStatus('🚀 Starte TV Remote Handler...', 'info');
     this.initRemoteHandler(serverHost);
   }

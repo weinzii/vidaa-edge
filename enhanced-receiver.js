@@ -63,7 +63,10 @@ const receiverServer = http.createServer((req, res) => {
     handleExecuteResponse(req, res);
   } else if (req.method === 'GET' && req.url === '/api/command-check') {
     handleCommandCheck(req, res);
-  } else if (req.method === 'GET' && (req.url === '/console' || req.url === '/remote-console')) {
+  } else if (
+    req.method === 'GET' &&
+    (req.url === '/console' || req.url === '/remote-console')
+  ) {
     // Serve Remote Console HTML for laptop access
     handleConsoleUI(req, res);
   } else if (req.method === 'GET' && req.url === '/api/status') {
@@ -503,7 +506,9 @@ function saveFunctionData(data) {
 
 // Start TV Receiver Server on all interfaces
 receiverServer.listen(RECEIVER_PORT, '0.0.0.0', () => {
-  console.log(`🖥️  TV Receiver Server started on port ${RECEIVER_PORT} (all interfaces)`);
+  console.log(
+    `🖥️  TV Receiver Server started on port ${RECEIVER_PORT} (all interfaces)`
+  );
   console.log(`   Endpoint: http://localhost:${RECEIVER_PORT}/api/functions`);
 });
 
@@ -548,6 +553,10 @@ receiverServer.on('error', (error) => {
 console.log('🚀 VIDAA Enhanced Receiver System started');
 console.log('📋 Available endpoints:');
 console.log(`   📡 All APIs: http://localhost:${RECEIVER_PORT}/api/*`);
-console.log(`   📤 Function Upload: http://localhost:${RECEIVER_PORT}/api/functions`);
-console.log(`   🎮 Remote Commands: http://localhost:${RECEIVER_PORT}/api/remote-command`);
+console.log(
+  `   📤 Function Upload: http://localhost:${RECEIVER_PORT}/api/functions`
+);
+console.log(
+  `   🎮 Remote Commands: http://localhost:${RECEIVER_PORT}/api/remote-command`
+);
 console.log(`   📊 Status: http://localhost:${RECEIVER_PORT}/api/status`);

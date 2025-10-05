@@ -617,8 +617,11 @@
           // Debug: Log raw response to see what server actually sends
           const responseText = await response.text();
           console.log('Raw server response:', responseText);
-          logToConsole('debug', `Raw Response: ${responseText.substring(0, 200)}...`);
-          
+          logToConsole(
+            'debug',
+            `Raw Response: ${responseText.substring(0, 200)}...`
+          );
+
           const result = JSON.parse(responseText);
 
           if (result.success) {

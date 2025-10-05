@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
-import { ConsoleService, LogEntry } from 'src/app/services/console.service';
+import { ConsoleService, LogEntry } from '../../services/console.service';
 import { NgClass, NgFor, NgIf } from '@angular/common';
 
 @Component({
@@ -7,6 +7,7 @@ import { NgClass, NgFor, NgIf } from '@angular/common';
   templateUrl: './console-modal.component.html',
   styleUrls: ['./console-modal.component.css'],
   imports: [NgIf, NgFor, NgClass],
+  standalone: true,
   preserveWhitespaces: true,
 })
 export class ConsoleModalComponent implements OnInit {

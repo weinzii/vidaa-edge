@@ -1,11 +1,13 @@
 import { Route } from '@angular/router';
-import { StartComponent } from 'src/app/pages/start/start.component';
+import { StartComponent } from './pages/start/start.component';
 import { DocumentationComponent } from './pages/documentation/documentation.component';
 import { GettingStartedComponent } from './pages/documentation/pages/getting-started/getting-started.component';
 import { HostedComponent } from './pages/documentation/pages/hosted/hosted.component';
 import { SelfHostedComponent } from './pages/documentation/pages/self-hosted/self-hosted.component';
 import { ApiComponent } from './pages/documentation/pages/api/api.component';
 import { InstallationComponent } from './pages/documentation/pages/installation/installation.component';
+import { DirectoryTreeComponent } from './components/directory-tree/directory-tree.component';
+import { FunctionExplorerComponent } from './pages/function-explorer/function-explorer.component';
 
 export const appRoutes: Route[] = [
   {
@@ -45,6 +47,16 @@ export const appRoutes: Route[] = [
         title: 'Vidaahub - Hisense API',
       },
     ],
+  },
+  {
+    path: 'directory-tree',
+    component: DirectoryTreeComponent,
+    title: 'Vidaahub - Directory Tree Explorer',
+  },
+  {
+    path: 'function-explorer',
+    component: FunctionExplorerComponent,
+    title: 'Vidaahub - Function Explorer',
   },
   {
     path: '**',

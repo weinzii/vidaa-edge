@@ -22,10 +22,7 @@
             "input": "public"
           }
         ],
-        "styles": [
-          "./src/styles.css",
-          "node_modules/ngx-toastr/toastr.css"
-        ],
+        "styles": ["./src/styles.css", "node_modules/ngx-toastr/toastr.css"],
         "scripts": []
       },
       "configurations": {
@@ -76,7 +73,8 @@
           "sslKey": "certs/key.pem",
           "sslCert": "certs/cert.pem",
           "host": "0.0.0.0",
-          "port": 443
+          "port": 443,
+          "proxyConfig": "proxy.conf.json"
         }
       },
       "defaultConfiguration": "development"

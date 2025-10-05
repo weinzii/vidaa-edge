@@ -1,38 +1,100 @@
-# VidaaEdge - Custom Apps for VidaaOS TVs
+# VidaaEdge - VIDAA TV Development Toolkit
 
 [!["Drop me a Coin"](https://coindrop.to/embed-button.png)](https://coindrop.to/weinzii)
 
-This project provides a method to install custom [Progressive Web Apps (PWAs)](https://en.wikipedia.org/wiki/Progressive_Web_App) on your VidaaOS-based TV (e.g., Jellyfin, etc.). Before you start, ensure that the old [method](https://github.com/jellyfin/jellyfin-media-player/issues/250#issuecomment-1213673661) is no longer supported by your TV.
+This project provides comprehensive development tools for VidaaOS-based TVs, including filesystem exploration, API analysis, and custom app installation capabilities.
 
-Please note that this project is under development and may not work on all devices. **Use it at your own risk.**
+**Status:** Development toolkit - use at your own risk.
 
-Credits go to [BananaMafia](https://bananamafia.dev/post/hisensehax/) for discovering the exploit. This blog post provided the inspiration for creating this project.
+Credits go to [BananaMafia](https://bananamafia.dev/post/hisensehax/) for discovering the directory traversal exploits that enabled this research.
 
-## Overview
-- **Platform:** VidaaOS-based TVs  
-- **Purpose:** Install and manage custom PWAs.  
-- **Status:** Experimental – use at your own risk.  
+## 🛠️ Development Tools
 
-For detailed installation and usage instructions, please refer to the [VidaaEdge Hosted Documentation](https://vidaa.flummi.ch/).
+### Directory Tree Explorer
 
-## Features
-- Install and uninstall custom apps on VidaaOS TVs.  
-- Self-hosted and hosted options available.  
-- Use DNS spoofing to enable access to VidaaOS API functions.  
+- **Filesystem Navigation:** Browse TV filesystem using XMLHttpRequest and Hisense_FileRead APIs
+- **Root Detection:** Automatically detects system roots and mount points
+- **ASCII Tree Output:** Generate complete directory trees for analysis
+- **Security Research:** Implement directory traversal techniques from bananamafia blog
 
-## Getting Started
-Visit the [hosted documentation](https://vidaa.flummi.ch/documentation) to get started.
+### Function Explorer & Analyzer
 
-## Warning
-- **This project is not officially supported** by VidaaOS or its affiliates. Use at your own risk, im not responsible for any damage!
-- Only install trusted apps from trusted sources to avoid potential risks.
-- Self-hosting is the safest option.
+- **API Discovery:** Extract and analyze all available VIDAA TV functions
+- **Source Code Export:** Export function definitions as TypeScript declarations
+- **Development Bridge:** Transfer functions from TV to development machine
+- **Real-time Analysis:** Live function inspection and documentation
 
-## Disclaimer
-This repository contains tools and examples for using the VidaaOS APIs. Any misuse of the APIs or custom apps could pose risks. Always proceed cautiously and verify your configurations.
+### Custom App Installation
 
-## Documentation
-For detailed guides and troubleshooting, visit the [hosted documentation](https://vidaa.flummi.ch/documentation).
+- **PWA Support:** Install Progressive Web Apps on VidaaOS TVs
+- **Self-hosted Options:** Deploy and manage custom applications
+- **DNS Configuration:** Enable API access through network configuration
+
+## 🚀 Quick Start
+
+### Development Mode
+
+```bash
+# Start the complete development environment
+npm run receiver
+
+# This automatically:
+# 1. Detects your local IP address
+# 2. Updates configuration
+# 3. Starts the function receiver server
+```
+
+### Access on VIDAA TV
+
+1. Navigate to the hosted app or deploy locally
+2. Use **Directory Tree Explorer** for filesystem analysis
+3. Use **Function Explorer** to extract TV APIs
+4. Install custom apps through the installation interface
+
+## 📋 Features
+
+### 🔍 Filesystem Analysis
+
+- **Root Discovery:** `/`, `/system`, `/data`, `/storage` exploration
+- **Directory Traversal:** Recursive tree building with depth control
+- **File Access:** Read system files and configuration data
+- **Mount Point Detection:** Identify all available filesystems
+
+### 🔧 API Research
+
+- **Function Extraction:** Complete VIDAA API surface discovery
+- **Source Analysis:** Extract function implementations via toString()
+- **TypeScript Generation:** Auto-generate type definitions
+- **Cross-Platform Transfer:** TV-to-development-machine bridge
+
+### 📱 App Management
+
+- **Custom Installation:** Deploy PWAs and custom applications
+- **DNS Integration:** Network-based API enablement
+- **Self-hosted Deployment:** Complete local development setup
+
+## 🏗️ Architecture
+
+```
+VIDAA TV                    Development Machine
+├── Directory Explorer  →   ├── Function Receiver Server
+├── Function Analyzer   →   ├── TypeScript Definitions
+└── Custom App Installer    └── Development Environment
+```
+
+## ⚠️ Security & Disclaimer
+
+- **Experimental Tool:** This is a research and development toolkit
+- **Use Responsibly:** Only analyze your own devices
+- **No Official Support:** Not endorsed by VidaaOS or Hisense
+- **Self-hosting Recommended:** Safest approach for production use
+
+## 📖 Documentation
+
+For complete setup guides and API references:
+
+- **Hosted Documentation:** [vidaa.flummi.ch](https://vidaa.flummi.ch/documentation)
+- **BananaMafia Research:** [Original exploit analysis](https://bananamafia.dev/post/hisensehax/)
 
 ## License
 

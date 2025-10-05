@@ -5,11 +5,12 @@ import { Component, Input } from '@angular/core';
   selector: 'app-copy-to-clipboard',
   templateUrl: './copy-to-clipboard.component.html',
   styleUrls: ['./copy-to-clipboard.component.css'],
+  standalone: true,
   imports: [NgIf],
 })
 export class CopyToClipboardComponent {
-  @Input() value: string = '';
-  showTooltip: boolean = false;
+  @Input() value = '';
+  showTooltip = false;
 
   copyToClipboard() {
     navigator.clipboard.writeText(this.value).then(

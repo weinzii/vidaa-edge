@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { GridListComponent } from 'src/app/pages/start/components/grid-list/grid-list.component';
-import { ConsoleService } from 'src/app/services/console.service';
-import { VidaaService } from 'src/app/services/vidaa.service';
-import { environment } from 'src/environments/environment';
+import { GridListComponent } from './components/grid-list/grid-list.component';
+import { ConsoleService } from '../../services/console.service';
+import { VidaaService } from '../../services/vidaa.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-start',
@@ -12,16 +12,21 @@ import { environment } from 'src/environments/environment';
   standalone: true,
 })
 export class StartComponent implements OnInit {
-  vidaaDevice: boolean = false;
+  vidaaDevice = false;
   debugMode: boolean = environment.debug;
 
-  constructor(private consoleService: ConsoleService, private vidaaService: VidaaService) { }
+  constructor(
+    private consoleService: ConsoleService,
+    private vidaaService: VidaaService
+  ) {}
 
   ngOnInit() {
-    if(!this.debugMode){
+    if (!this.debugMode) {
       this.checkForVidaaDevice();
     } else {
-      this.consoleService.addLog('Debug mode is enabled. Skipping device check.');
+      this.consoleService.addLog(
+        'Debug mode is enabled. Skipping device check.'
+      );
       this.vidaaDevice = true;
     }
   }
@@ -31,13 +36,17 @@ export class StartComponent implements OnInit {
 
     const firmwareVersion = this.vidaaService.getFirmwareVersion();
 
-    if(firmwareVersion){
-      this.consoleService.addLog('Firmware version detected: ' + firmwareVersion);
+    if (firmwareVersion) {
+      this.consoleService.addLog(
+        'Firmware version detected: ' + firmwareVersion
+      );
       this.vidaaDevice = true;
     } else {
-      this.consoleService.addLog('Could not detect firmware version. Device is not running Vidaa OS.', 'error');
+      this.consoleService.addLog(
+        'Could not detect firmware version. Device is not running Vidaa OS.',
+        'error'
+      );
       this.vidaaDevice = false;
     }
   }
-
 }

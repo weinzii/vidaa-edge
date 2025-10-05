@@ -1,10 +1,9 @@
-
 import { NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { ConsoleService } from 'src/app/services/console.service';
-import { VidaaService } from 'src/app/services/vidaa.service';
+import { ConsoleService } from '../../../../services/console.service';
+import { VidaaService } from '../../../../services/vidaa.service';
 
 @Component({
   selector: 'app-custom-app-modal',
@@ -24,7 +23,11 @@ export class CustomAppModalComponent {
   appUrl = '';
   statusMessage = '';
 
-  constructor(private vidaaService: VidaaService, private consoleService: ConsoleService, private toastr: ToastrService) { }
+  constructor(
+    private vidaaService: VidaaService,
+    private consoleService: ConsoleService,
+    private toastr: ToastrService
+  ) {}
 
   openModal(): void {
     this.isOpen = true;
@@ -67,19 +70,41 @@ export class CustomAppModalComponent {
 
     this.toastr.info(`Installing ${app.appName}`);
     this.consoleService.addLog(`Installing  ${app.appName}`);
-    this.vidaaService.installApp(app.appId, app.appName, app.image, app.image, app.image, app.appUrl, 'store')
+    this.vidaaService
+      .installApp(
+        app.appId,
+        app.appName,
+        app.image,
+        app.image,
+        app.image,
+        app.appUrl,
+        'store'
+      )
       .then((res) => {
         if (res) {
-          this.toastr.success(`Installation completed. ${app.appName} successfully installed.`);
-          this.consoleService.addLog(`Installation completed. ${app.appName} successfully installed.`);
+          this.toastr.success(
+            `Installation completed. ${app.appName} successfully installed.`
+          );
+          this.consoleService.addLog(
+            `Installation completed. ${app.appName} successfully installed.`
+          );
         } else {
-          this.toastr.error(`Installation failed. ${app.appName} failed to install.`);
-          this.consoleService.addLog(`Installation failed. ${app.appName} failed to install.`, 'error' );
+          this.toastr.error(
+            `Installation failed. ${app.appName} failed to install.`
+          );
+          this.consoleService.addLog(
+            `Installation failed. ${app.appName} failed to install.`,
+            'error'
+          );
         }
       })
-      .catch((error) => {
-        this.toastr.error(`Installation failed. ${app.appName} could not be installed.`);
-        console.error(`Installation failed. ${app.appName} could not be installed.`, 'error');
+      .catch(() => {
+        this.toastr.error(
+          `Installation failed. ${app.appName} failed to install.`
+        );
+        this.consoleService.addLog(
+          `Installation failed. ${app.appName} failed to install.`
+        );
       });
   }
 
@@ -89,22 +114,36 @@ export class CustomAppModalComponent {
     if (!app) {
       return;
     }
-    
+
     this.toastr.info(`Uninstall ${app.appName}`);
     this.consoleService.addLog(`Uninstall  ${app.appName}`);
-    this.vidaaService.uninstallApp(app.appId, app.appName)
+    this.vidaaService
+      .uninstallApp(app.appId, app.appName)
       .then((res) => {
         if (res) {
-          this.toastr.success(`Uninstallation completed. ${app.appName} successfully uninstalled.`);
-          this.consoleService.addLog(`Uninstallation completed. ${app.appName} successfully uninstalled.`);
+          this.toastr.success(
+            `Uninstallation completed. ${app.appName} successfully uninstalled.`
+          );
+          this.consoleService.addLog(
+            `Uninstallation completed. ${app.appName} successfully uninstalled.`
+          );
         } else {
-          this.toastr.error(`Uninstallation failed. ${app.appName} could not be uninstalled.`);
-          this.consoleService.addLog(`Uninstallation failed. ${app.appName} could not be uninstalled.`, 'error');
+          this.toastr.error(
+            `Uninstallation failed. ${app.appName} could not be uninstalled.`
+          );
+          this.consoleService.addLog(
+            `Uninstallation failed. ${app.appName} could not be uninstalled.`,
+            'error'
+          );
         }
       })
-      .catch((error) => {
-        this.toastr.error(`Uninstallation failed. ${app.appName} could not be uninstalled.`);
-        console.error(`Uninstallation failed. ${app.appName} could not be uninstalled.`, 'error');
+      .catch(() => {
+        this.toastr.error(
+          `Uninstallation failed. ${app.appName} failed to uninstall.`
+        );
+        this.consoleService.addLog(
+          `Uninstallation failed. ${app.appName} failed to uninstall.`
+        );
       });
   }
 

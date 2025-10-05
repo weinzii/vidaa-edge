@@ -1,6 +1,5 @@
 export const environment = {
-    production: false,
-    debug: true,
-    jellyfinUrl: 'http://jellyfin.weinzi.com/',
+  production: false,
+  debug: true,
+  jellyfinUrl: 'http://192.168.2.2:8096/',
 };
-  

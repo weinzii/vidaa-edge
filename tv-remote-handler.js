@@ -11,8 +11,6 @@
 (function () {
   'use strict';
 
-  console.log('🚀 VIDAA Remote Command Handler wird initialisiert...');
-
   // Configuration - Use local DNS
   const RECEIVER_URL = 'http://vidaahub.com:3000'; // Lokale DNS Domain
   let isRemoteEnabled = true;
@@ -61,7 +59,7 @@
       `🔧 Führe aus: ${command.function}(${command.parameters.join(', ')})`
     );
 
-    let result = {
+    const result = {
       commandId: command.id,
       function: command.function,
       parameters: command.parameters,
@@ -79,7 +77,7 @@
       }
 
       // Execute with parameters
-      const output = func.apply(null, command.parameters);
+      const output = func(...command.parameters);
 
       result.success = true;
       result.data = output;
@@ -182,7 +180,7 @@
         } else {
           document.getElementById('receiver-status').textContent = '🟡 SCHWACH';
         }
-      } catch (error) {
+      } catch {
         document.getElementById('receiver-status').textContent = '🔴 OFFLINE';
       }
     }, 5000);

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
  * VIDAA Enhanced Function Receiver Server
- * Erweiterte Version - empfängt Funktionen und leitet Befehle weiter
+ * Unified server - empfängt Funktionen und leitet Befehle weiter
  *
  * Features:
- * - Empfang von Hisense-Funktionen vom VIDAA TV (Port 3000)
- * - Remote Console API für Laptop-Steuerung (Port 3001)
+ * - Empfang von Hisense-Funktionen vom VIDAA TV
+ * - Remote Console API für Laptop-Steuerung
  * - Weiterleitung von Befehlen an das VIDAA TV
+ * - Alle APIs auf Port 3000
  *
  * Usage: node enhanced-receiver.js
  */
@@ -14,13 +15,12 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
 const RECEIVER_PORT = 3000; // Unified port for everything
 const OUTPUT_DIR = './received-functions';
 
 // TV Connection State
-let tvConnectionInfo = {
+const tvConnectionInfo = {
   connected: false,
   lastSeen: null,
   ipAddress: null,
@@ -28,8 +28,7 @@ let tvConnectionInfo = {
 };
 
 // Command queue for TV
-let commandQueue = [];
-let isProcessingCommands = false;
+const commandQueue = [];
 
 // Stelle sicher, dass Output-Verzeichnis existiert
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -78,53 +77,6 @@ const receiverServer = http.createServer((req, res) => {
   } else if (req.method === 'GET' && req.url === '/api/functions') {
     // Function list for Remote Console
     handleFunctionsList(req, res);
-  } else {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not Found');
-  }
-});
-
-/**
- * ===== REMOTE CONSOLE SERVER (Port 3001) =====
- * Für Laptop-Steuerung
- */
-const consoleServer = { close: () => {}, on: () => {} }; // Dummy - Console Server removed
-const _oldConsoleServer = http.createServer((req, res) => {
-  console.log(
-    `💻 Console Request: ${req.method} ${req.url} from ${req.connection.remoteAddress}`
-  );
-
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
-  }
-
-  if (req.method === 'GET' && (req.url === '/' || req.url === '/console')) {
-    handleConsoleUI(req, res);
-  } else if (req.method === 'GET' && req.url === '/api/status') {
-    handleStatusRequest(req, res);
-  } else if (req.method === 'POST' && req.url === '/api/execute') {
-    handleExecuteRequest(req, res);
-  } else if (req.method === 'POST' && req.url === '/api/functions') {
-    // TV sendet Funktions-Upload (Original Funktion)
-    handleFunctionReceive(req, res);
-  } else if (req.method === 'GET' && req.url === '/api/functions') {
-    handleFunctionsList(req, res);
-  } else if (req.method === 'POST' && req.url === '/api/remote-command') {
-    // Remote Console: Funktions-Ausführung (uses same handler as /api/execute)
-    handleExecuteRequest(req, res);
-  } else if (req.method === 'GET' && req.url === '/api/command-check') {
-    // TV fragt nach Befehlen
-    handleCommandCheck(req, res);
-  } else if (req.method === 'POST' && req.url === '/api/execute-response') {
-    // TV sendet Ausführungsergebnis zurück
-    handleExecuteResponse(req, res);
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
@@ -357,7 +309,7 @@ function handleExecuteRequest(req, res) {
               // Clean up result file
               try {
                 fs.unlinkSync(latestResult);
-              } catch (e) {
+              } catch {
                 console.log('Could not delete result file');
               }
             }

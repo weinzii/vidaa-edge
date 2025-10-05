@@ -6,7 +6,6 @@
     "start": "nx serve",
     "build": "nx build",
     "test": "nx test",
-    "receiver": "node vidaa-function-receiver.js",
     "enhanced-receiver": "node enhanced-receiver.js"
   },
   "private": true,

@@ -1046,7 +1046,7 @@ export class FunctionExplorerComponent implements OnInit {
     navigator.clipboard
       .writeText(combined)
       .then(() => {
-        console.log('All function definitions copied to clipboard');
+        // Clipboard copy successful
       })
       .catch(() => {
         const textArea = document.createElement('textarea');

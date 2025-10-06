@@ -1,11 +1,15 @@
 import { Injectable } from '@angular/core';
 import { ConsoleService } from './console.service';
+import { TvCommunicationService } from './tv-communication.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class VidaaService {
-  constructor(private consoleService: ConsoleService) {}
+  constructor(
+    private consoleService: ConsoleService,
+    private tvCommunicationService: TvCommunicationService
+  ) {}
 
   /**
    * Get Available Hisense Functions

@@ -10,13 +10,6 @@ Credits go to [BananaMafia](https://bananamafia.dev/post/hisensehax/) for discov
 
 ## 🛠️ Development Tools
 
-### Directory Tree Explorer
-
-- **Filesystem Navigation:** Browse TV filesystem using XMLHttpRequest and Hisense_FileRead APIs
-- **Root Detection:** Automatically detects system roots and mount points
-- **ASCII Tree Output:** Generate complete directory trees for analysis
-- **Security Research:** Implement directory traversal techniques from bananamafia blog
-
 ### Function Explorer & Analyzer
 
 - **API Discovery:** Extract and analyze all available VIDAA TV functions
@@ -46,8 +39,8 @@ npm run receiver
 
 ### Access on VIDAA TV
 
-1. Navigate to the hosted app or deploy locally
-2. Use **Directory Tree Explorer** for filesystem analysis
+1. Navigate to the **Remote Console** on your TV browser
+2. Use **Function Explorer** for security analysis
 3. Use **Function Explorer** to extract TV APIs
 4. Install custom apps through the installation interface
 

@@ -2,6 +2,7 @@ import { Component, ViewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { ConsoleModalComponent } from './components/console-modal/console-modal.component';
 import { NgIf } from '@angular/common';
+import { DeviceDetectionService } from './services/device-detection.service';
 
 @Component({
   selector: 'app-root',
@@ -14,6 +15,8 @@ export class AppComponent {
   @ViewChild(ConsoleModalComponent)
   consoleModalComponent!: ConsoleModalComponent;
   isMobileMenuOpen = false;
+
+  constructor(public deviceDetection: DeviceDetectionService) {}
 
   openConsoleModal(): void {
     this.consoleModalComponent.openModal();

@@ -89,9 +89,13 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
                 <h4 class="text-lg font-semibold text-white mb-2">
                   Visit Development Console
                 </h4>
-                <p class="text-gray-300 mb-2">Go to: <code
-                  class="bg-customGray text-orange-400 px-3 py-1 rounded border border-purple-900"
-                  >https://vidaahub.com/console</code></p>
+                <p class="text-gray-300 mb-2">
+                  Go to:
+                  <code
+                    class="bg-customGray text-orange-400 px-3 py-1 rounded border border-purple-900"
+                    >https://vidaahub.com/console</code
+                  >
+                </p>
                 <p class="text-gray-400 text-sm mt-1">
                   DNS must redirect vidaahub.com to your local dev server
                 </p>

@@ -9,13 +9,11 @@ import { ControllerConsoleComponent } from '../controller-console/controller-con
   standalone: true,
   imports: [CommonModule, TvScannerComponent, ControllerConsoleComponent],
   template: `
-    <div class="min-h-screen bg-gray-900">
-      <!-- TV Mode: Show TV Scanner Component -->
-      <app-tv-scanner *ngIf="isTvMode"></app-tv-scanner>
+    <!-- TV Mode: Show TV Scanner Component -->
+    <app-tv-scanner *ngIf="isTvMode"></app-tv-scanner>
 
-      <!-- Controller Mode: Show Controller Console Component -->
-      <app-controller-console *ngIf="!isTvMode"></app-controller-console>
-    </div>
+    <!-- Controller Mode: Show Controller Console Component -->
+    <app-controller-console *ngIf="!isTvMode"></app-controller-console>
   `,
   styles: [],
 })

@@ -19,16 +19,16 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
   imports: [CommonModule, FormsModule, CodeModalComponent],
   template: `
     <div
-      class="max-w-6xl mx-auto p-5 bg-gray-900 text-gray-200 min-h-screen font-sans"
+      class="max-w-6xl mx-auto p-5 bg-customGray text-gray-200 min-h-screen font-sans"
     >
       <header class="text-center mb-4">
-        <h1 class="text-blue-400 text-3xl font-bold mb-1">
+        <h1 class="text-orange-500 text-3xl font-bold mb-1">
           💻 Remote Function Controller
         </h1>
         <!-- Only show connection status when functions are available (not during initial setup) -->
         <div class="flex justify-center" *ngIf="availableFunctions.length > 0">
           <div
-            class="flex items-center gap-3 bg-gray-800 px-4 py-2 rounded-lg"
+            class="flex items-center gap-3 bg-customGray-light px-4 py-2 rounded-lg border border-purple-900"
             [class.bg-green-900]="tvConnection.connected"
             [class.bg-red-900]="!tvConnection.connected"
           >
@@ -54,8 +54,10 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
         class="max-w-4xl mx-auto"
         *ngIf="availableFunctions.length === 0 && !tvConnection.connected"
       >
-        <div class="bg-gray-800 rounded-lg p-8 shadow-lg">
-          <h2 class="text-2xl font-bold text-blue-400 mb-4">
+        <div
+          class="bg-customGray-light rounded-lg p-8 shadow-lg border border-purple-900"
+        >
+          <h2 class="text-2xl font-bold text-orange-500 mb-4">
             📺 TV Setup Required
           </h2>
           <p class="text-gray-300 mb-8">
@@ -65,7 +67,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
           <div class="space-y-6">
             <div class="flex items-start gap-4">
               <span
-                class="bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                class="bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
                 >1</span
               >
               <div>
@@ -80,17 +82,16 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
 
             <div class="flex items-start gap-4">
               <span
-                class="bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                class="bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
                 >2</span
               >
               <div>
                 <h4 class="text-lg font-semibold text-white mb-2">
                   Visit Development Console
                 </h4>
-                <p class="text-gray-300 mb-2">Go to:</p>
-                <code class="bg-gray-700 text-green-400 px-3 py-1 rounded block"
-                  >https://vidaahub.com/console</code
-                >
+                <p class="text-gray-300 mb-2">Go to: <code
+                  class="bg-customGray text-orange-400 px-3 py-1 rounded border border-purple-900"
+                  >https://vidaahub.com/console</code></p>
                 <p class="text-gray-400 text-sm mt-1">
                   DNS must redirect vidaahub.com to your local dev server
                 </p>
@@ -99,7 +100,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
 
             <div class="flex items-start gap-4">
               <span
-                class="bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                class="bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
                 >3</span
               >
               <div>
@@ -113,12 +114,14 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
             </div>
           </div>
 
-          <div class="mt-8 p-5 bg-black rounded-lg border-l-4 border-green-500">
+          <div
+            class="mt-8 p-5 bg-customGray rounded-lg border-l-4 border-orange-500"
+          >
             <div class="flex items-center justify-center gap-3 mb-3">
               <div
-                class="w-3 h-3 bg-green-500 rounded-full animate-pulse"
+                class="w-3 h-3 bg-orange-500 rounded-full animate-pulse"
               ></div>
-              <span class="text-green-400 font-bold"
+              <span class="text-orange-400 font-bold"
                 >Waiting for TV connection...</span
               >
             </div>
@@ -131,18 +134,20 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
 
       <!-- Function Library Browser (only when functions are available) -->
       <div
-        class="bg-gray-800 rounded-lg p-6 mb-6"
+        class="bg-customGray-light rounded-lg p-6 mb-6 border border-purple-900"
         *ngIf="availableFunctions.length > 0"
       >
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-2xl font-bold text-white">📚 Function Library</h2>
+          <h2 class="text-2xl font-bold text-orange-500">
+            📚 Function Library
+          </h2>
           <div class="flex gap-3">
             <input
               type="text"
               [(ngModel)]="functionFilter"
               (input)="filterFunctions()"
               placeholder="🔍 Search functions..."
-              class="bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              class="bg-customGray text-white px-4 py-2 rounded-lg border border-purple-900 focus:border-orange-500 focus:outline-none"
               aria-label="Search functions"
             />
             <button
@@ -168,11 +173,11 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
           <button
             *ngFor="let category of categories"
             class="px-4 py-2 rounded-lg transition-colors whitespace-nowrap text-sm"
-            [class.bg-blue-600]="selectedCategory === category.key"
+            [class.bg-orange-600]="selectedCategory === category.key"
             [class.text-white]="selectedCategory === category.key"
-            [class.bg-gray-700]="selectedCategory !== category.key"
+            [class.bg-customGray]="selectedCategory !== category.key"
             [class.text-gray-300]="selectedCategory !== category.key"
-            [class.hover:bg-blue-500]="selectedCategory !== category.key"
+            [class.hover:bg-orange-500]="selectedCategory !== category.key"
             (click)="selectCategory(category.key)"
           >
             {{ category.icon }} {{ category.name }} ({{
@@ -187,12 +192,11 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
         >
           <div
             *ngFor="let func of filteredFunctions"
-            class="bg-gray-700 rounded-lg p-2 cursor-pointer transition-all hover:bg-gray-600 relative"
-            [class.ring-2]="selectedFunction?.name === func.name"
-            [class.ring-blue-500]="selectedFunction?.name === func.name"
-            [class.ring-offset-2]="selectedFunction?.name === func.name"
-            [class.ring-offset-gray-800]="selectedFunction?.name === func.name"
-            [class.bg-blue-900]="selectedFunction?.name === func.name"
+            [ngClass]="{
+              'bg-customGray rounded-lg p-2 cursor-pointer transition-all hover:bg-purple-900/30 relative border border-purple-900': true,
+              'ring-2 ring-orange-500 ring-offset-2 ring-offset-customGray-light bg-orange-900/30':
+                selectedFunction?.name === func.name
+            }"
             (click)="selectFunction(func)"
             tabindex="0"
             role="button"
@@ -208,13 +212,13 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
                   (click)="
                     copyFunctionToCustomCode(func); $event.stopPropagation()
                   "
-                  class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  class="text-xs text-orange-400 hover:text-orange-300 transition-colors"
                   title="Copy to Custom Code"
                 >
                   📋
                 </button>
                 <span
-                  class="text-xs bg-gray-600 text-gray-300 px-1 py-0.5 rounded flex-shrink-0"
+                  class="text-xs bg-purple-900 text-gray-300 px-1 py-0.5 rounded flex-shrink-0"
                   >{{ getFunctionType(func.name) }}</span
                 >
               </div>
@@ -238,7 +242,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
               Source Code:
             </div>
             <pre
-              class="bg-black p-3 rounded border border-gray-600 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
+              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
               >{{ selectedFunction.sourceCode }}</pre
             >
           </div>
@@ -266,7 +270,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
                   [id]="'modal-param-' + i"
                   type="text"
                   [(ngModel)]="parameterValues[i]"
-                  class="w-full p-2 bg-black border border-gray-600 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500"
+                  class="w-full p-2 bg-customGray border border-purple-900 rounded text-gray-200 text-sm focus:outline-none focus:border-orange-500"
                   [placeholder]="getParameterHint(param)"
                 />
               </div>
@@ -287,23 +291,25 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
           <!-- Result Display -->
           <div *ngIf="executionResult !== null" class="mt-4">
             <div class="flex items-center justify-between mb-2">
-              <div class="text-sm font-semibold text-blue-400">📊 Result:</div>
+              <div class="text-sm font-semibold text-orange-400">
+                📊 Result:
+              </div>
               <button
                 (click)="copyResultToClipboard()"
-                class="text-xs text-gray-400 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-gray-700"
+                class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
                 title="Copy to clipboard"
               >
                 📋 Copy
               </button>
             </div>
             <pre
-              class="bg-black p-3 rounded border border-gray-600 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
+              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
               >{{ formatResult(executionResult) }}</pre
             >
           </div>
 
           <!-- Executing Indicator -->
-          <div *ngIf="isExecuting" class="text-center text-blue-400">
+          <div *ngIf="isExecuting" class="text-center text-orange-400">
             ⏳ Executing function on TV...
           </div>
         </div>
@@ -311,22 +317,24 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
 
       <!-- Command History -->
       <div
-        class="bg-gray-800 rounded-lg p-6 mt-6"
+        class="bg-customGray-light rounded-lg p-6 mt-6 border border-purple-900"
         *ngIf="commandHistory.length > 0"
       >
-        <h3 class="text-xl font-bold text-blue-400 mb-4">📜 Command History</h3>
+        <h3 class="text-xl font-bold text-orange-500 mb-4">
+          📜 Command History
+        </h3>
         <div class="space-y-3">
           <div
             *ngFor="
               let command of commandHistory.slice().reverse();
               let i = index
             "
-            class="bg-black rounded border border-gray-600 p-3"
+            class="bg-customGray rounded border border-purple-900 p-3"
           >
             <div class="flex justify-between items-start mb-2">
               <div class="flex-1 min-w-0">
                 <div class="flex items-baseline gap-2 flex-wrap">
-                  <span class="font-mono font-bold text-blue-400 text-sm">{{
+                  <span class="font-mono font-bold text-orange-400 text-sm">{{
                     command.functionName
                   }}</span>
                   <!-- Show Parameters for regular functions - max 25% width -->
@@ -346,7 +354,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
                     (click)="
                       toggleHistoryExpansion(commandHistory.length - 1 - i)
                     "
-                    class="text-xs text-gray-400 hover:text-blue-400 transition-colors"
+                    class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
                     title="Show/Hide Code"
                   >
                     {{
@@ -381,7 +389,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
               class="mb-2"
             >
               <pre
-                class="bg-black p-3 rounded border border-gray-600 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
+                class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
                 >{{ command.customCode }}</pre
               >
             </div>
@@ -391,7 +399,7 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
               *ngIf="command.result !== undefined && command.result !== null"
             >
               <pre
-                class="bg-gray-900 p-2 rounded text-xs font-mono text-gray-300 max-h-20 overflow-y-auto"
+                class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 max-h-20 overflow-y-auto"
                 >{{ formatResult(command.result) }}</pre
               >
             </div>
@@ -414,29 +422,34 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
             </div>
             <textarea
               [(ngModel)]="customJsCode"
-              class="w-full h-64 p-3 bg-black border border-gray-600 rounded text-gray-200 font-mono text-sm focus:outline-none focus:border-blue-500"
+              class="w-full h-64 p-3 bg-customGray border border-purple-900 rounded text-gray-200 font-mono text-sm focus:outline-none focus:border-orange-500"
               placeholder="// Enter custom JavaScript code to execute on TV...&#10;// Example:&#10;const result = Hisense_GetBrand();&#10;console.log(result);&#10;return result;"
             ></textarea>
           </div>
 
           <div *ngIf="customCodeResult !== null" class="mt-4">
             <div class="flex items-center justify-between mb-2">
-              <div class="text-sm font-semibold text-blue-400">📊 Result:</div>
+              <div class="text-sm font-semibold text-orange-400">
+                📊 Result:
+              </div>
               <button
                 (click)="copyCustomCodeResultToClipboard()"
-                class="text-xs text-gray-400 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-gray-700"
+                class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
                 title="Copy to clipboard"
               >
                 📋 Copy
               </button>
             </div>
             <pre
-              class="bg-black p-3 rounded border border-gray-600 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
+              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
               >{{ formatResult(customCodeResult) }}</pre
             >
           </div>
 
-          <div *ngIf="isExecutingCustomCode" class="text-center text-blue-400">
+          <div
+            *ngIf="isExecutingCustomCode"
+            class="text-center text-orange-400"
+          >
             ⏳ Executing custom code on TV...
           </div>
         </div>

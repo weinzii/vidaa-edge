@@ -44,3 +44,8 @@ Thumbs.db
 .angular
 .history
 received-functions
+
+# Exported function files in /public directory
+public/hisense-functions-*.d.ts
+public/hisense-source-*.js
+public/device-info-*.json

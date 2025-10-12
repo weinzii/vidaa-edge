@@ -2,50 +2,84 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, interval } from 'rxjs';
 import { tap, catchError, switchMap, timeout } from 'rxjs/operators';
-import { environment } from '../../environments/environment';
-import { DeviceDetectionService } from './device-detection.service';
 
 export interface TVConnectionInfo {
   connected: boolean;
   lastSeen: Date | null;
-  ipAddress: string | null;
-  deviceInfo: any | null;
+  brand?: string;
+  model?: string;
+  firmware?: string;
 }
 
 export interface CommandQueueItem {
   id: string;
   function: string;
-  parameters?: any;
+  parameters?: Record<string, unknown> | unknown[];
   timestamp: Date;
   status: 'pending' | 'sent' | 'completed' | 'timeout';
-  result?: any;
+  result?: unknown;
 }
 
-export interface TVFunction {
+export interface FunctionData {
   name: string;
+  sourceCode?: string;
   parameters?: string[];
   description?: string;
-  source?: string;
+  available?: boolean;
+}
+
+export interface ApiResponse {
+  functions: FunctionData[];
+  timestamp?: string;
+  deviceInfo?: Record<string, unknown>;
+}
+
+export interface CommandResponse {
+  commandId: string;
+  success?: boolean;
+  waiting?: boolean;
+  data?: unknown;
+  error?: string | null;
+  function?: string;
+}
+
+export interface ExecuteRequest {
+  function: string;
+  parameters: Record<string, unknown> | unknown[];
+}
+
+export interface RemoteCommand {
+  id: string;
+  function: string;
+  parameters: unknown[];
+  success: boolean;
+  data: unknown;
+  error: string | null;
+  timestamp: string;
+}
+
+export interface RemoteCommandCheck {
+  hasCommand: boolean;
+  command?: RemoteCommand;
 }
 
 @Injectable({
   providedIn: 'root',
 })
 export class TvCommunicationService {
-  private readonly STORAGE_KEY = 'vidaa_functions';
   private readonly COMMAND_TIMEOUT = 10000; // 10 seconds
-  private apiBaseUrl = ''; // Will be set based on device detection
 
   // State Management
   private tvConnectionSubject = new BehaviorSubject<TVConnectionInfo>({
     connected: false,
     lastSeen: null,
-    ipAddress: null,
-    deviceInfo: null,
+    brand: undefined,
+    model: undefined,
+    firmware: undefined,
   });
 
   private commandQueueSubject = new BehaviorSubject<CommandQueueItem[]>([]);
-  private functionsSubject = new BehaviorSubject<TVFunction[]>([]);
+  private functionsSubject = new BehaviorSubject<FunctionData[]>([]);
 
   // Public Observables
   public tvConnection$ = this.tvConnectionSubject.asObservable();
@@ -53,14 +87,8 @@ export class TvCommunicationService {
   public functions$ = this.functionsSubject.asObservable();
 
   constructor(private http: HttpClient) {
-    this.initializeApiBaseUrl();
     this.loadFunctions();
     this.startConnectionMonitoring();
-  }
-
-  private initializeApiBaseUrl(): void {
-    // Always use current host - no localStorage
-    this.apiBaseUrl = window.location.origin;
   }
 
   /**
@@ -72,10 +100,14 @@ export class TvCommunicationService {
     interval(10000).subscribe(() => {
       this.loadFunctions();
     });
+
+    // Note: Command polling is now handled by TV Scanner Component
+    // The TV Scanner polls checkForCommands() every 3 seconds
   }
 
   public updateTvConnection(info: Partial<TVConnectionInfo>): void {
     const current = this.tvConnectionSubject.value;
+
     const updated = {
       ...current,
       ...info,
@@ -86,90 +118,94 @@ export class TvCommunicationService {
   }
 
   /**
+   * Extract device details from deviceInfo
+   */
+  private extractDeviceDetails(
+    deviceInfo: Record<string, unknown> | null | undefined
+  ): {
+    brand?: string;
+    model?: string;
+    firmware?: string;
+  } {
+    if (!deviceInfo) return {};
+
+    return {
+      brand:
+        (typeof deviceInfo?.['Hisense_GetBrand'] === 'string'
+          ? deviceInfo['Hisense_GetBrand']
+          : undefined) ||
+        (typeof deviceInfo?.['userAgent'] === 'string' &&
+        deviceInfo['userAgent'].includes('Hisense')
+          ? 'Hisense'
+          : undefined),
+      model:
+        typeof deviceInfo?.['Hisense_GetModelName'] === 'string'
+          ? deviceInfo['Hisense_GetModelName']
+          : undefined,
+      firmware:
+        (typeof deviceInfo?.['Hisense_GetFirmWareVersion'] === 'string'
+          ? deviceInfo['Hisense_GetFirmWareVersion']
+          : undefined) ||
+        (typeof deviceInfo?.['Hisense_GetApiVersion'] === 'string'
+          ? deviceInfo['Hisense_GetApiVersion']
+          : undefined),
+    };
+  }
+
+  /**
    * ===== FUNCTION MANAGEMENT =====
    */
 
-  public receiveFunctions(data: any): Observable<any> {
-    console.log(
-      '📤 TvCommunicationService: Starting receiveFunctions with data:',
-      {
-        functionsCount: data.functions?.length || 0,
-        deviceInfo: data.deviceInfo,
-        timestamp: data.timestamp,
-      }
-    );
-
-    // Send to backend API for cross-device communication
+  public receiveFunctions(data: ApiResponse): Observable<unknown> {
     return this.http.post('/api/functions', data).pipe(
-      tap((response: any) => {
-        console.log(
-          '📤 TvCommunicationService: API Response received:',
-          response
-        );
-
-        // Also update local state
+      tap(() => {
         const functions = this.extractFunctions(data);
         this.functionsSubject.next(functions);
         this.saveFunctions(data);
 
-        // Update TV connection info
+        const deviceDetails = this.extractDeviceDetails(data.deviceInfo);
         this.updateTvConnection({
           connected: true,
-          ipAddress: data.deviceInfo?.networkInfo?.ipAddress,
-          deviceInfo: data.deviceInfo,
+          ...deviceDetails,
         });
-      }),
-      catchError((error) => {
-        console.error(
-          '❌ TvCommunicationService: receiveFunctions API Error:',
-          error
-        );
-        console.error('❌ Error Details:', {
-          status: error.status,
-          statusText: error.statusText,
-          url: error.url,
-          message: error.message,
-        });
-        throw error;
       })
     );
   }
 
-  private extractFunctions(data: any): TVFunction[] {
+  private extractFunctions(data: ApiResponse): FunctionData[] {
     if (!data.functions || !Array.isArray(data.functions)) {
       return [];
     }
 
-    return data.functions.map((func: any) => ({
+    return data.functions.map((func: FunctionData) => ({
       name: func.name,
       parameters: func.parameters || [],
       description: func.description || '',
-      source: func.sourceCode || func.source || func.toString(),
+      sourceCode: func.sourceCode || func.toString(),
+      available: func.available ?? true,
     }));
   }
 
-  private saveFunctions(data: any): void {
+  private saveFunctions(data: ApiResponse): void {
     // No localStorage - only create function files in memory
     this.createFunctionFiles(data);
   }
 
   private loadFunctions(): void {
     // Load from API for cross-device communication
-    this.http.get('/api/functions').subscribe({
-      next: (response: any) => {
+    this.http.get<ApiResponse>('/api/functions').subscribe({
+      next: (response: ApiResponse) => {
         if (response.functions && response.functions.length > 0) {
-          const currentFunctions = this.functionsSubject.value;
-          const newCount = response.functions.length;
-          const oldCount = currentFunctions.length;
+          const mappedFunctions = response.functions.map(
+            (func: FunctionData) => ({
+              name: func.name,
+              parameters: func.parameters || [],
+              description: func.description || '',
+              sourceCode: func.sourceCode,
+            })
+          );
 
-          // Only log significant changes (not just polling)
-          if (newCount !== oldCount && newCount > 0) {
-            console.log(
-              `📥 TV Functions loaded: ${newCount} functions available`
-            );
-          }
-
-          this.functionsSubject.next(response.functions);
+          this.functionsSubject.next(mappedFunctions);
 
           // Update connection status based on data freshness
           if (response.timestamp) {
@@ -177,66 +213,40 @@ export class TvCommunicationService {
               new Date().getTime() - new Date(response.timestamp).getTime();
             const isConnected = dataAge < 300000; // 5 minutes threshold
 
+            const deviceDetails = this.extractDeviceDetails(
+              response.deviceInfo
+            );
             this.updateTvConnection({
               connected: isConnected,
-              ipAddress: response.connectionInfo?.ipAddress,
-              deviceInfo: response.deviceInfo,
+              ...deviceDetails,
             });
           }
         } else {
-          // No functions available - check if we should disconnect
           const currentFunctions = this.functionsSubject.value;
           const currentConnection = this.tvConnectionSubject.value;
 
           if (currentFunctions.length > 0) {
-            console.log('📂 TV disconnected - functions cleared');
             this.functionsSubject.next([]);
           }
 
-          // Set disconnected if we haven't seen data recently
           if (currentConnection.connected && currentConnection.lastSeen) {
             const timeSinceLastSeen =
               new Date().getTime() - currentConnection.lastSeen.getTime();
             if (timeSinceLastSeen > 300000) {
-              // 5 minutes
               this.updateTvConnection({ connected: false });
             }
           }
         }
       },
-      error: (error) => {
-        console.log('⚠️ API not available - no fallback');
-        // No localStorage fallback - force API usage
+      error: () => {
         this.functionsSubject.next([]);
       },
     });
   }
 
-  private createFunctionFiles(data: any): void {
-    // Store functions in service for remote console access
-    console.log(
-      `📁 Functions loaded into service: ${this.functionsSubject.value.length} functions available for remote execution`
-    );
-
-    // Send to dev-server instead of downloading files (TV doesn't need downloads)
-    // Use current origin (vidaahub.com redirected to dev-server by DNS)
-    const serverUrl = `${window.location.origin}/api/functions`;
-
-    this.http.post(serverUrl, data).subscribe({
-      next: (response: any) => {
-        console.log('📡 Functions successfully sent to server:', response);
-        console.log('💾 Files saved on development machine');
-      },
-      error: (error) => {
-        console.warn(
-          '⚠️ Dev-Server not available - functions stored locally only',
-          error
-        );
-        console.log('💡 Start dev server with: npm start');
-      },
-    });
-
-    console.log('🔧 Functions ready for laptop remote control');
+  private createFunctionFiles(data: ApiResponse): void {
+    // Use relative path so proxy can intercept
+    this.http.post('/api/functions', data).subscribe();
   }
 
   public downloadFile(filename: string, content: string): void {
@@ -251,132 +261,43 @@ export class TvCommunicationService {
     window.URL.revokeObjectURL(url);
   }
 
-  public getFunctionsList(): Observable<TVFunction[]> {
+  public getFunctionsList(): Observable<FunctionData[]> {
     return this.functions$;
   }
 
   /**
    * ===== COMMAND EXECUTION =====
+   * Sends remote commands to TV via the command queue system.
+   * This method is used by the Controller Console (laptop/browser)
+   * to execute functions on the TV remotely.
+   *
+   * The TV Scanner Component polls for these commands and executes them.
+   * Note: Source code is NOT sent to the TV - the TV already has access to all functions.
    */
 
   public executeFunction(
     functionName: string,
-    parameters: any = {},
-    sourceCode?: string
-  ): Observable<any> {
-    console.log(`🔥 EXECUTE FUNCTION CALLED:`);
-    console.log(`📋 Function: ${functionName}`);
-    console.log(`📋 Parameters:`, parameters);
-    console.log(`📋 Source Code Length:`, sourceCode?.length || 0);
-
-    // Check if we have access to window functions (TV Mode)
-    const windowObj = window as unknown as Record<string, unknown>;
-    const isTvMode = typeof windowObj[functionName] === 'function';
-
-    console.log(
-      `📋 Device Mode: ${
-        isTvMode ? 'TV (Direct Execution)' : 'Laptop (Remote Command)'
-      }`
-    );
-
-    if (isTvMode) {
-      // TV MODE: Direct execution
-      console.log(`📺 TV MODE: Executing function directly`);
-
-      try {
-        const func = windowObj[functionName] as Function;
-
-        // Convert parameters to array if needed
-        const paramArray = Array.isArray(parameters)
-          ? parameters
-          : parameters && typeof parameters === 'object'
-          ? Object.values(parameters)
-          : [parameters];
-
-        const result = func(...paramArray);
-        console.log(`✅ TV execution successful:`, result);
-
-        return new Observable((observer) => {
-          observer.next(result);
-          observer.complete();
-        });
-      } catch (error) {
-        console.error(`❌ TV execution failed:`, error);
-        return new Observable((observer) => {
-          observer.error(error);
-        });
-      }
-    } else {
-      // LAPTOP MODE: Send command with source code for eval() execution on TV
-      console.log(`💻 LAPTOP MODE: Sending remote command with source code`);
-
-      // Find the function source code if not provided
-      let functionSource = sourceCode;
-      if (!functionSource) {
-        const functions = this.functionsSubject.value;
-        const targetFunction = functions.find((f) => f.name === functionName);
-        functionSource = targetFunction?.source || '';
-      }
-
-      const url = '/api/remote-command';
-      console.log(`📋 Using URL: ${url} (via proxy)`);
-
-      return this.http
-        .post(url, {
-          function: functionName,
-          parameters: parameters,
-          sourceCode: functionSource, // Include source code for eval() execution
-          executionMode: 'eval', // Tell TV to use eval()
+    parameters: Record<string, unknown> | unknown[] = {}
+  ): Observable<unknown> {
+    // Send only function name and parameters to TV
+    // The TV will execute the function from its own window object
+    return this.http
+      .post<CommandResponse>('/api/remote-command', {
+        function: functionName,
+        parameters: parameters,
+      })
+      .pipe(
+        timeout(30000), // 30 seconds timeout for initial command queue submission
+        switchMap((response: CommandResponse) =>
+          this.pollForResult(response.commandId)
+        ),
+        catchError((error) => {
+          throw error;
         })
-        .pipe(
-          timeout(5000), // 5 second timeout
-          tap({
-            next: (response: any) => {
-              console.log(`🔥 HTTP POST SUCCESS:`);
-              console.log(`🔥📤 Response Status: SUCCESS`);
-              console.log(`📤 Response Data:`, response);
-              console.log(`📤 Response Type:`, typeof response);
-              console.log(`📤 Response Keys:`, Object.keys(response || {}));
-
-              if (response && response.commandId) {
-                console.log(`📤 Command ID found: ${response.commandId}`);
-              } else {
-                console.log(`🔥 NO COMMAND ID! This is the problem!`);
-                console.log(
-                  `🔥 Response structure:`,
-                  JSON.stringify(response, null, 2)
-                );
-              }
-            },
-            error: (error) => {
-              console.log(`🔴 Command failed:`, error.status, error.message);
-
-              // Handle TV disconnection errors specifically
-              if (
-                error.status === 503 &&
-                error.error?.error === 'TV_NOT_CONNECTED'
-              ) {
-                console.log(`📺 TV NOT CONNECTED:`, error.error.message);
-              }
-            },
-          }),
-          switchMap((response: any) => {
-            // Poll for result
-            return this.pollForResult(response.commandId);
-          }),
-          catchError((error) => {
-            console.error('❌ Command execution failed:', error);
-            throw error;
-          })
-        );
-    }
+      );
   }
 
-  private generateCommandId(): string {
-    return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private pollForResult(commandId: string): Observable<any> {
+  private pollForResult(commandId: string): Observable<unknown> {
     return new Observable((observer) => {
       const timeout = setTimeout(() => {
         clearInterval(pollInterval);
@@ -386,72 +307,33 @@ export class TvCommunicationService {
       }, this.COMMAND_TIMEOUT);
 
       const pollInterval = setInterval(() => {
-        this.http.get(`/api/execute-response/${commandId}`).subscribe({
-          next: (response: any) => {
-            if (response.waiting) {
-              // Still waiting for result
-              return;
-            }
+        this.http
+          .get<CommandResponse>(`/api/execute-response/${commandId}`)
+          .subscribe({
+            next: (response: CommandResponse) => {
+              if (response.waiting) {
+                // Still waiting for result
+                return;
+              }
 
-            // Got result
-            clearTimeout(timeout);
-            clearInterval(pollInterval);
+              clearTimeout(timeout);
+              clearInterval(pollInterval);
 
-            console.log(
-              `✅ Command result received: ${response.function} (${commandId})`
-            );
-
-            if (response.success) {
-              observer.next(response.data);
-            } else {
-              observer.error(new Error(response.error));
-            }
-            observer.complete();
-          },
-          error: (error) => {
-            clearTimeout(timeout);
-            clearInterval(pollInterval);
-            observer.error(error);
-          },
-        });
+              if (response.success) {
+                observer.next(response.data);
+              } else {
+                observer.error(new Error(response.error || 'Unknown error'));
+              }
+              observer.complete();
+            },
+            error: (error) => {
+              clearTimeout(timeout);
+              clearInterval(pollInterval);
+              observer.error(error);
+            },
+          });
       }, 500); // Poll every 500ms
     });
-  }
-
-  private monitorCommandExecution(commandId: string): Observable<any> {
-    return new Observable((observer) => {
-      const timeout = setTimeout(() => {
-        this.updateCommandStatus(commandId, 'timeout');
-        observer.error(
-          new Error('Command timeout - no response received within 10 seconds')
-        );
-      }, this.COMMAND_TIMEOUT);
-
-      // Poll for command completion
-      const checkInterval = setInterval(() => {
-        const queue = this.commandQueueSubject.value;
-        const command = queue.find((cmd) => cmd.id === commandId);
-
-        if (command?.status === 'completed') {
-          clearTimeout(timeout);
-          clearInterval(checkInterval);
-          observer.next(command.result);
-          observer.complete();
-        }
-      }, 500);
-    });
-  }
-
-  private updateCommandStatus(
-    commandId: string,
-    status: CommandQueueItem['status'],
-    result?: any
-  ): void {
-    const currentQueue = this.commandQueueSubject.value;
-    const updatedQueue = currentQueue.map((cmd) =>
-      cmd.id === commandId ? { ...cmd, status, result } : cmd
-    );
-    this.commandQueueSubject.next(updatedQueue);
   }
 
   /**
@@ -459,44 +341,40 @@ export class TvCommunicationService {
    * These methods are called by the TV to check for commands and send results
    */
 
-  public checkForCommands(): Observable<any> {
+  public checkForCommands(): Observable<RemoteCommandCheck> {
     // TV polls server for commands
-    return this.http.get('/api/remote-command').pipe(
-      catchError((error) => {
-        console.log('⚠️ Command API not reachable:', error);
-        // Return no command if API not available
-        return new Observable((observer) => {
+    return new Observable((observer) => {
+      this.http.get('/api/remote-command').subscribe({
+        next: (data) => {
+          observer.next(data as RemoteCommandCheck);
+          observer.complete();
+        },
+        error: () => {
+          console.log('⚠️ Command API not reachable');
           observer.next({ hasCommand: false });
           observer.complete();
-        });
-      })
-    );
+        },
+      });
+    });
   }
 
-  public receiveCommandResult(commandId: string, result: any): Observable<any> {
-    console.log(
-      `✅ TvCommunicationService: Sending result to server - ${commandId}`
-    );
-
-    // Send result to server
-    return this.http.post('/api/execute-response', result).pipe(
-      tap(() => {
-        console.log(
-          `📤 Result sent to server: ${result.function} (${commandId})`
-        );
-      }),
-      catchError((error) => {
-        console.error('❌ Failed to send result to server:', error);
-        throw error;
-      })
-    );
+  public receiveCommandResult(
+    commandId: string,
+    result: CommandResponse
+  ): Observable<unknown> {
+    return this.http.post('/api/execute-response', result);
   }
 
   /**
    * ===== STATUS INFORMATION =====
    */
 
-  public getStatus(): Observable<any> {
+  public getStatus(): Observable<{
+    tvConnection: TVConnectionInfo;
+    commandQueue: { total: number; pending: number; completed: number };
+    functionsAvailable: number;
+    lastUpdate: string;
+  }> {
     const tvInfo = this.tvConnectionSubject.value;
     const queue = this.commandQueueSubject.value;
     const functions = this.functionsSubject.value;
@@ -530,5 +408,45 @@ export class TvCommunicationService {
 
   public clearAllCommands(): void {
     this.commandQueueSubject.next([]);
+  }
+
+  /**
+   * ===== FILE SAVING =====
+   */
+
+  public saveFilesToPublic(
+    files: Array<{ filename: string; content: string }>
+  ): Observable<{ saved: string[] }> {
+    return this.http.post<{ saved: string[] }>('/api/save-to-public', {
+      files,
+    });
+  }
+
+  /**
+   * ===== CUSTOM CODE EXECUTION =====
+   * Execute arbitrary JavaScript code on the TV
+   */
+
+  public executeCustomCode(jsCode: string): Observable<unknown> {
+    const commandId = Date.now().toString();
+
+    // Create custom code command (only send required fields for queueing)
+    const customCommand = {
+      id: commandId,
+      function: '__CUSTOM_CODE__',
+      parameters: [jsCode], // Pass JS code as parameter
+      timestamp: new Date().toISOString(),
+    };
+
+    // Send command to server
+    return this.http.post('/api/remote-command', customCommand).pipe(
+      switchMap(() => this.pollForResult(commandId)),
+      timeout(this.COMMAND_TIMEOUT),
+      catchError((error) => {
+        // Pass through the original error object (like executeFunction does)
+        // This preserves HTTP status codes and structured error responses
+        throw error;
+      })
+    );
   }
 }

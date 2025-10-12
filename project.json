@@ -74,7 +74,7 @@
           "sslCert": "certs/cert.pem",
           "host": "0.0.0.0",
           "port": 443,
-          "proxyConfig": "proxy.conf.json"
+          "proxyConfig": "proxy.conf.js"
         }
       },
       "defaultConfiguration": "development"

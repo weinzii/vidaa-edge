@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, interval } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, catchError } from 'rxjs/operators';
 import { TvConnectionService } from './tv-connection.service';
+import { ConsoleService } from './console.service';
 
 export interface FunctionData {
   name: string;
@@ -31,7 +32,8 @@ export class TvFunctionService {
 
   constructor(
     private http: HttpClient,
-    private tvConnectionService: TvConnectionService
+    private tvConnectionService: TvConnectionService,
+    private consoleService: ConsoleService
   ) {
     this.loadFunctions();
     this.startFunctionMonitoring();
@@ -53,6 +55,18 @@ export class TvFunctionService {
    * @returns Observable of the HTTP response
    */
   public receiveFunctions(data: ApiResponse): Observable<unknown> {
+    // Validate input
+    if (!data || !data.functions) {
+      this.consoleService.error(
+        'Invalid function data received',
+        new Error('Missing functions array'),
+        'TvFunction'
+      );
+      return new Observable((observer) => {
+        observer.error(new Error('Invalid function data: missing functions array'));
+      });
+    }
+
     return this.http.post('/api/functions', data).pipe(
       tap(() => {
         const functions = this.extractFunctions(data);
@@ -66,6 +80,21 @@ export class TvFunctionService {
           connected: true,
           ...deviceDetails,
         });
+
+        this.consoleService.info(
+          `Received ${functions.length} functions from TV`,
+          'TvFunction'
+        );
+      }),
+      catchError((error) => {
+        this.consoleService.error(
+          'Failed to save functions to server',
+          error,
+          'TvFunction'
+        );
+        throw new Error(
+          `Failed to save functions: ${error.message || 'Unknown error'}`
+        );
       })
     );
   }

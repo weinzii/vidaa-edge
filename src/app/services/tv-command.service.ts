@@ -43,6 +43,7 @@ export class TvCommandService {
   private readonly COMMAND_TIMEOUT = 10000; // 10 seconds
   private readonly CUSTOM_CODE_TIMEOUT = 30000; // 30 seconds
   private readonly POLL_INTERVAL = 1000; // 1 second (optimized from 500ms)
+  private readonly MAX_CODE_LENGTH = 50000; // 50KB max for custom code
 
   private commandQueueSubject = new BehaviorSubject<CommandQueueItem[]>([]);
   public commandQueue$ = this.commandQueueSubject.asObservable();
@@ -58,11 +59,24 @@ export class TvCommandService {
    * @param functionName Name of function to execute
    * @param parameters Function parameters
    * @returns Observable with execution result
+   * @throws Error if function name is empty or invalid
    */
   public executeFunction(
     functionName: string,
     parameters: Record<string, unknown> | unknown[] = {}
   ): Observable<unknown> {
+    // Validate input
+    if (!functionName || functionName.trim().length === 0) {
+      this.consoleService.error(
+        'Function name cannot be empty',
+        new Error('Invalid function name'),
+        'TvCommand'
+      );
+      return new Observable((observer) => {
+        observer.error(new Error('Function name cannot be empty'));
+      });
+    }
+
     const commandId = Date.now().toString();
 
     return this.http
@@ -77,17 +91,54 @@ export class TvCommandService {
           this.pollForResult(response.commandId)
         ),
         catchError((error) => {
-          throw error;
+          const errorMessage =
+            error.name === 'TimeoutError'
+              ? `Command timeout - Server did not respond within 30 seconds`
+              : `Command execution failed: ${error.message || 'Unknown error'}`;
+
+          this.consoleService.error(
+            `executeFunction failed for '${functionName}'`,
+            error,
+            'TvCommand'
+          );
+          throw new Error(errorMessage);
         })
       );
   }
 
   /**
    * Execute custom JavaScript code on the TV.
+   * Validates code length and provides detailed error messages.
    * @param jsCode JavaScript code to execute
    * @returns Observable with execution result
+   * @throws Error if code is empty, too long, or execution fails
    */
   public executeCustomCode(jsCode: string): Observable<unknown> {
+    // Validate input
+    if (!jsCode || jsCode.trim().length === 0) {
+      this.consoleService.error(
+        'Custom code cannot be empty',
+        new Error('Empty code'),
+        'TvCommand'
+      );
+      return new Observable((observer) => {
+        observer.error(new Error('Custom code cannot be empty'));
+      });
+    }
+
+    if (jsCode.length > this.MAX_CODE_LENGTH) {
+      const errorMsg = `Custom code exceeds maximum length of ${this.MAX_CODE_LENGTH} characters (current: ${jsCode.length})`;
+      this.consoleService.error(errorMsg, new Error('Code too long'), 'TvCommand');
+      return new Observable((observer) => {
+        observer.error(new Error(errorMsg));
+      });
+    }
+
+    this.consoleService.info(
+      `Executing custom code (${jsCode.length} characters)`,
+      'TvCommand'
+    );
+
     const commandId = Date.now().toString();
 
     const customCommand = {
@@ -100,7 +151,17 @@ export class TvCommandService {
     return this.http.post('/api/remote-command', customCommand).pipe(
       switchMap(() => this.pollForResult(commandId, this.CUSTOM_CODE_TIMEOUT)),
       catchError((error) => {
-        throw error;
+        const errorMessage =
+          error.name === 'TimeoutError'
+            ? `Custom code execution timeout - No response within ${this.CUSTOM_CODE_TIMEOUT / 1000} seconds`
+            : `Custom code execution failed: ${error.message || 'Unknown error'}`;
+
+        this.consoleService.error(
+          'executeCustomCode failed',
+          error,
+          'TvCommand'
+        );
+        throw new Error(errorMessage);
       })
     );
   }
@@ -119,8 +180,15 @@ export class TvCommandService {
     const timeoutDuration = timeoutMs || this.COMMAND_TIMEOUT;
 
     return new Observable((observer) => {
+      let pollCount = 0;
+      const maxPolls = Math.ceil(timeoutDuration / this.POLL_INTERVAL);
+
       const timeoutHandle = setTimeout(() => {
         clearInterval(pollInterval);
+        this.consoleService.warn(
+          `Command ${commandId} timed out after ${pollCount} polls (${timeoutDuration}ms)`,
+          'TvCommand'
+        );
         observer.error(
           new Error(
             `Command timeout - no response received within ${
@@ -131,11 +199,20 @@ export class TvCommandService {
       }, timeoutDuration);
 
       const pollInterval = setInterval(() => {
+        pollCount++;
+
         this.http
           .get<CommandResponse>(`/api/execute-response/${commandId}`)
           .subscribe({
             next: (response: CommandResponse) => {
               if (response.waiting) {
+                // Log progress every 5 polls
+                if (pollCount % 5 === 0) {
+                  this.consoleService.debug(
+                    `Still waiting for command ${commandId} (poll ${pollCount}/${maxPolls})`,
+                    'TvCommand'
+                  );
+                }
                 return; // Keep polling
               }
 
@@ -143,16 +220,35 @@ export class TvCommandService {
               clearInterval(pollInterval);
 
               if (response.success) {
+                this.consoleService.info(
+                  `Command ${commandId} completed successfully after ${pollCount} polls`,
+                  'TvCommand'
+                );
                 observer.next(response.data);
               } else {
-                observer.error(new Error(response.error || 'Unknown error'));
+                const errorMsg = response.error || 'Unknown error';
+                this.consoleService.error(
+                  `Command ${commandId} failed: ${errorMsg}`,
+                  new Error(errorMsg),
+                  'TvCommand'
+                );
+                observer.error(new Error(errorMsg));
               }
               observer.complete();
             },
             error: (error) => {
               clearTimeout(timeoutHandle);
               clearInterval(pollInterval);
-              observer.error(error);
+              this.consoleService.error(
+                `HTTP error while polling for command ${commandId}`,
+                error,
+                'TvCommand'
+              );
+              observer.error(
+                new Error(
+                  `Failed to poll for result: ${error.message || 'Network error'}`
+                )
+              );
             },
           });
       }, this.POLL_INTERVAL);

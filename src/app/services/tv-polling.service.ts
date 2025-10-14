@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { ConsoleService } from './console.service';
 import { FunctionResult } from './tv-command.service';
 
@@ -77,6 +78,51 @@ export class TvPollingService {
     commandId: string,
     result: CommandResponse
   ): Observable<unknown> {
-    return this.http.post('/api/execute-response', result);
+    // Validate input
+    if (!commandId || commandId.trim().length === 0) {
+      this.consoleService.error(
+        'Command ID cannot be empty',
+        new Error('Invalid commandId'),
+        'TVPolling'
+      );
+      return new Observable((observer) => {
+        observer.error(new Error('Command ID cannot be empty'));
+      });
+    }
+
+    if (!result) {
+      this.consoleService.error(
+        'Result cannot be null',
+        new Error('Invalid result'),
+        'TVPolling'
+      );
+      return new Observable((observer) => {
+        observer.error(new Error('Result cannot be null'));
+      });
+    }
+
+    this.consoleService.info(
+      `Sending result for command ${commandId} (success: ${result.success})`,
+      'TVPolling'
+    );
+
+    return this.http.post('/api/execute-response', result).pipe(
+      tap(() => {
+        this.consoleService.debug(
+          `Result for command ${commandId} sent successfully`,
+          'TVPolling'
+        );
+      }),
+      catchError((error) => {
+        this.consoleService.error(
+          `Failed to send result for command ${commandId}`,
+          error as Error,
+          'TVPolling'
+        );
+        throw new Error(
+          `Failed to send command result: ${error.message || 'Unknown error'}`
+        );
+      })
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, interval } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { ConsoleService } from './console.service';
 
 export interface TVConnectionInfo {
@@ -52,13 +53,26 @@ export class TvConnectionService {
    * @param info Partial connection info to update
    */
   public updateTvConnection(info: Partial<TVConnectionInfo>): void {
-    const current = this.tvConnectionSubject.value;
-    const updated = {
-      ...current,
-      ...info,
-      lastSeen: info.lastSeen || new Date(),
-    };
-    this.tvConnectionSubject.next(updated);
+    try {
+      const current = this.tvConnectionSubject.value;
+      const updated = {
+        ...current,
+        ...info,
+        lastSeen: info.lastSeen || new Date(),
+      };
+      this.tvConnectionSubject.next(updated);
+
+      this.consoleService.debug(
+        `TV connection updated: ${info.connected ? 'CONNECTED' : 'DISCONNECTED'}`,
+        'TvConnection'
+      );
+    } catch (error) {
+      this.consoleService.error(
+        'Failed to update TV connection',
+        error as Error,
+        'TvConnection'
+      );
+    }
   }
 
   /**
@@ -74,9 +88,26 @@ export class TvConnectionService {
    * @returns Observable with keep-alive response
    */
   public sendKeepAlive(): Observable<unknown> {
-    return this.http.post('/api/keepalive', {
-      timestamp: new Date().toISOString(),
-    });
+    return this.http
+      .post('/api/keepalive', {
+        timestamp: new Date().toISOString(),
+      })
+      .pipe(
+        tap(() => {
+          this.consoleService.debug('Keep-alive sent successfully', 'TvConnection');
+        }),
+        catchError(() => {
+          this.consoleService.warn(
+            'Keep-alive failed (TV may be offline)',
+            'TvConnection'
+          );
+          // Don't throw - keep-alive failures are non-critical
+          return new Observable((observer) => {
+            observer.next({ success: false });
+            observer.complete();
+          });
+        })
+      );
   }
 
   /**

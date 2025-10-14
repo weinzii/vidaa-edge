@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { switchMap, timeout, catchError } from 'rxjs/operators';
@@ -42,7 +42,7 @@ export interface CommandResponse {
 export class TvCommandService {
   private readonly COMMAND_TIMEOUT = 10000; // 10 seconds
   private readonly CUSTOM_CODE_TIMEOUT = 30000; // 30 seconds
-  private readonly POLL_INTERVAL = 1000; // 1 second (optimized from 500ms)
+  private readonly POLL_INTERVAL = 500; // 500ms for responsive UI
   private readonly MAX_CODE_LENGTH = 50000; // 50KB max for custom code
 
   private commandQueueSubject = new BehaviorSubject<CommandQueueItem[]>([]);
@@ -50,7 +50,8 @@ export class TvCommandService {
 
   constructor(
     private http: HttpClient,
-    private consoleService: ConsoleService
+    private consoleService: ConsoleService,
+    private ngZone: NgZone
   ) {}
 
   /**
@@ -128,7 +129,11 @@ export class TvCommandService {
 
     if (jsCode.length > this.MAX_CODE_LENGTH) {
       const errorMsg = `Custom code exceeds maximum length of ${this.MAX_CODE_LENGTH} characters (current: ${jsCode.length})`;
-      this.consoleService.error(errorMsg, new Error('Code too long'), 'TvCommand');
+      this.consoleService.error(
+        errorMsg,
+        new Error('Code too long'),
+        'TvCommand'
+      );
       return new Observable((observer) => {
         observer.error(new Error(errorMsg));
       });
@@ -153,8 +158,12 @@ export class TvCommandService {
       catchError((error) => {
         const errorMessage =
           error.name === 'TimeoutError'
-            ? `Custom code execution timeout - No response within ${this.CUSTOM_CODE_TIMEOUT / 1000} seconds`
-            : `Custom code execution failed: ${error.message || 'Unknown error'}`;
+            ? `Custom code execution timeout - No response within ${
+                this.CUSTOM_CODE_TIMEOUT / 1000
+              } seconds`
+            : `Custom code execution failed: ${
+                error.message || 'Unknown error'
+              }`;
 
         this.consoleService.error(
           'executeCustomCode failed',
@@ -185,17 +194,19 @@ export class TvCommandService {
 
       const timeoutHandle = setTimeout(() => {
         clearInterval(pollInterval);
-        this.consoleService.warn(
-          `Command ${commandId} timed out after ${pollCount} polls (${timeoutDuration}ms)`,
-          'TvCommand'
-        );
-        observer.error(
-          new Error(
-            `Command timeout - no response received within ${
-              timeoutDuration / 1000
-            } seconds`
-          )
-        );
+        this.ngZone.run(() => {
+          this.consoleService.warn(
+            `Command ${commandId} timed out after ${pollCount} polls (${timeoutDuration}ms)`,
+            'TvCommand'
+          );
+          observer.error(
+            new Error(
+              `Command timeout - no response received within ${
+                timeoutDuration / 1000
+              } seconds`
+            )
+          );
+        });
       }, timeoutDuration);
 
       const pollInterval = setInterval(() => {
@@ -219,36 +230,42 @@ export class TvCommandService {
               clearTimeout(timeoutHandle);
               clearInterval(pollInterval);
 
-              if (response.success) {
-                this.consoleService.info(
-                  `Command ${commandId} completed successfully after ${pollCount} polls`,
-                  'TvCommand'
-                );
-                observer.next(response.data);
-              } else {
-                const errorMsg = response.error || 'Unknown error';
-                this.consoleService.error(
-                  `Command ${commandId} failed: ${errorMsg}`,
-                  new Error(errorMsg),
-                  'TvCommand'
-                );
-                observer.error(new Error(errorMsg));
-              }
-              observer.complete();
+              this.ngZone.run(() => {
+                if (response.success) {
+                  this.consoleService.info(
+                    `Command ${commandId} completed successfully after ${pollCount} polls`,
+                    'TvCommand'
+                  );
+                  observer.next(response.data);
+                } else {
+                  const errorMsg = response.error || 'Unknown error';
+                  this.consoleService.error(
+                    `Command ${commandId} failed: ${errorMsg}`,
+                    new Error(errorMsg),
+                    'TvCommand'
+                  );
+                  observer.error(new Error(errorMsg));
+                }
+                observer.complete();
+              });
             },
             error: (error) => {
               clearTimeout(timeoutHandle);
               clearInterval(pollInterval);
-              this.consoleService.error(
-                `HTTP error while polling for command ${commandId}`,
-                error,
-                'TvCommand'
-              );
-              observer.error(
-                new Error(
-                  `Failed to poll for result: ${error.message || 'Network error'}`
-                )
-              );
+              this.ngZone.run(() => {
+                this.consoleService.error(
+                  `HTTP error while polling for command ${commandId}`,
+                  error,
+                  'TvCommand'
+                );
+                observer.error(
+                  new Error(
+                    `Failed to poll for result: ${
+                      error.message || 'Network error'
+                    }`
+                  )
+                );
+              });
             },
           });
       }, this.POLL_INTERVAL);

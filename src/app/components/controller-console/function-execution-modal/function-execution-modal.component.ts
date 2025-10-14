@@ -7,10 +7,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  FunctionData,
-  FunctionResult,
-} from '../../../services/tv-communication.service';
+import { FunctionData } from '../../../services/tv-function.service';
+import { FunctionResult } from '../../../services/tv-command.service';
 
 @Component({
   selector: 'app-function-execution-modal',

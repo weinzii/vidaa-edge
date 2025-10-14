@@ -63,7 +63,9 @@ export class TvConnectionService {
       this.tvConnectionSubject.next(updated);
 
       this.consoleService.debug(
-        `TV connection updated: ${info.connected ? 'CONNECTED' : 'DISCONNECTED'}`,
+        `TV connection updated: ${
+          info.connected ? 'CONNECTED' : 'DISCONNECTED'
+        }`,
         'TvConnection'
       );
     } catch (error) {
@@ -94,7 +96,10 @@ export class TvConnectionService {
       })
       .pipe(
         tap(() => {
-          this.consoleService.debug('Keep-alive sent successfully', 'TvConnection');
+          this.consoleService.debug(
+            'Keep-alive sent successfully',
+            'TvConnection'
+          );
         }),
         catchError(() => {
           this.consoleService.warn(

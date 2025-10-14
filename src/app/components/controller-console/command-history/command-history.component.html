@@ -4,13 +4,6 @@
 >
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-xl font-bold text-orange-500">📜 Command History</h3>
-    <button
-      (click)="onScrollToTop()"
-      class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-3 py-1 rounded hover:bg-purple-900/30"
-      title="Scroll to top"
-    >
-      ⬆️ Top
-    </button>
   </div>
 
   <div class="space-y-3">
@@ -35,16 +28,10 @@
               [title]="'(' + command.parameters.join(', ') + ')'"
               >({{ command.parameters.join(', ') }})</span
             >
-            <!-- Expandable Custom Code -->
-            <button
-              *ngIf="command.customCode"
-              (click)="onHistoryToggle(commandHistory.length - 1 - i)"
-              class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
-              title="Show/Hide Code"
+            <!-- Custom Code Indicator -->
+            <span *ngIf="command.customCode" class="text-xs text-purple-400"
+              >Custom Code</span
             >
-              {{ isHistoryExpanded(commandHistory.length - 1 - i) ? '▼' : '▶' }}
-              Show Code
-            </button>
           </div>
         </div>
         <div class="flex items-center gap-3 ml-4 flex-shrink-0">
@@ -68,15 +55,51 @@
         </div>
       </div>
 
-      <!-- Custom Code Display (Expandable) -->
-      <div
-        *ngIf="
-          command.customCode && isHistoryExpanded(commandHistory.length - 1 - i)
-        "
-        class="mb-2"
-      >
+      <!-- Custom Code Display (Always visible if exists) -->
+      <div *ngIf="command.customCode" class="mb-2 relative">
+        <button
+          *ngIf="command.customCode.length > 100"
+          (click)="onHistoryToggle(commandHistory.length - 1 - i)"
+          class="absolute top-2 right-2 text-gray-400 hover:text-orange-400 transition-colors p-1 bg-customGray-light rounded z-10"
+          [title]="
+            isHistoryExpanded(commandHistory.length - 1 - i)
+              ? 'Collapse code'
+              : 'Expand code'
+          "
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              *ngIf="!isHistoryExpanded(commandHistory.length - 1 - i)"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+            />
+            <path
+              *ngIf="isHistoryExpanded(commandHistory.length - 1 - i)"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
+            />
+          </svg>
+        </button>
         <pre
-          class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
+          class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto text-gray-300"
+          [class.max-h-32]="
+            !isHistoryExpanded(commandHistory.length - 1 - i) &&
+            command.customCode.length > 100
+          "
+          [class.max-h-96]="
+            isHistoryExpanded(commandHistory.length - 1 - i) ||
+            command.customCode.length <= 100
+          "
           >{{ command.customCode }}</pre
         >
       </div>
@@ -85,28 +108,52 @@
       <div *ngIf="command.result !== undefined && command.result !== null">
         <div class="flex items-center justify-between mb-1">
           <span class="text-xs text-gray-400">Result:</span>
+        </div>
+        <div class="relative">
           <button
             *ngIf="shouldShowExpandButton(command.result)"
             (click)="onResultToggle(commandHistory.length - 1 - i)"
-            class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
-          >
-            {{
+            class="absolute top-2 right-2 text-gray-400 hover:text-orange-400 transition-colors p-1 bg-customGray-light rounded z-10"
+            [title]="
               isHistoryResultExpanded(commandHistory.length - 1 - i)
-                ? '▼ Collapse'
-                : '▶ Expand'
-            }}
+                ? 'Collapse result'
+                : 'Expand result'
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                *ngIf="!isHistoryResultExpanded(commandHistory.length - 1 - i)"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+              />
+              <path
+                *ngIf="isHistoryResultExpanded(commandHistory.length - 1 - i)"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
+              />
+            </svg>
           </button>
+          <pre
+            class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 overflow-y-auto"
+            [class.max-h-20]="
+              !isHistoryResultExpanded(commandHistory.length - 1 - i)
+            "
+            [class.max-h-96]="
+              isHistoryResultExpanded(commandHistory.length - 1 - i)
+            "
+            >{{ formatResult(command.result) }}</pre
+          >
         </div>
-        <pre
-          class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 overflow-y-auto"
-          [class.max-h-20]="
-            !isHistoryResultExpanded(commandHistory.length - 1 - i)
-          "
-          [class.max-h-96]="
-            isHistoryResultExpanded(commandHistory.length - 1 - i)
-          "
-          >{{ formatResult(command.result) }}</pre
-        >
       </div>
     </div>
   </div>

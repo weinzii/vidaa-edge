@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -72,6 +72,9 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   expandedHistoryItems: Set<number> = new Set();
   expandedHistoryResults: Set<number> = new Set();
 
+  // Scroll State
+  showScrollButton = false;
+
   // Connection State
   tvConnection: TVConnectionInfo = {
     connected: false,
@@ -88,30 +91,51 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     private tvFunctionService: TvFunctionService,
     private tvCommandService: TvCommandService,
     private functionFileGenerator: FunctionFileGeneratorService,
-    private consoleService: ConsoleService
+    private consoleService: ConsoleService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.loadCommandHistory();
     this.initConnection();
+    this.initScrollListener();
   }
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
+    // Remove scroll listener
+    window.removeEventListener('scroll', this.handleScroll);
   }
 
   // CONNECTION MANAGEMENT
   private initConnection(): void {
-    // Subscribe to TV functions
+    // Subscribe to TV functions for filtering
     const functionsSubscription = this.tvFunctionService.functions$.subscribe({
       next: (functions: FunctionData[]) => {
+        console.log(
+          '[ControllerConsole] Subscription triggered with',
+          functions.length,
+          'functions'
+        );
+        console.log(
+          '[ControllerConsole] availableFunctions before:',
+          this.availableFunctions.length
+        );
         if (functions && functions.length > 0) {
           this.availableFunctions = functions;
           this.filterFunctions();
+          console.log(
+            '[ControllerConsole] availableFunctions after:',
+            this.availableFunctions.length
+          );
+          console.log(
+            '[ControllerConsole] filteredFunctions:',
+            this.filteredFunctions.length
+          );
+          console.log('[ControllerConsole] Calling detectChanges()...');
+          this.cdr.detectChanges();
+          console.log('[ControllerConsole] detectChanges() done!');
         }
-      },
-      error: () => {
-        // Handle silently
       },
     });
 
@@ -255,6 +279,17 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   onScrollToTop(): void {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  // SCROLL MANAGEMENT
+  private initScrollListener(): void {
+    window.addEventListener('scroll', this.handleScroll);
+  }
+
+  private handleScroll = (): void => {
+    // Show button when scrolled down more than 300px
+    this.showScrollButton = window.scrollY > 300;
+    this.cdr.detectChanges();
+  };
 
   // SHARED UTILITY METHODS
   private filterFunctions(): void {

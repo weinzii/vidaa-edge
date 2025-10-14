@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TvConnectionService } from '../../services/tv-connection.service';
 import { TvFunctionService } from '../../services/tv-function.service';
@@ -49,7 +49,8 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     private tvConnectionService: TvConnectionService,
     private tvFunctionService: TvFunctionService,
     private tvPollingService: TvPollingService,
-    private consoleService: ConsoleService
+    private consoleService: ConsoleService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -176,21 +177,32 @@ export class TvScannerComponent implements OnInit, OnDestroy {
   private async initTvMode(): Promise<void> {
     this.appendTvStatus('🔄 Initializing TV Function Scanner...', 'info');
 
-    // Auto-start scanning after short delay
-    setTimeout(() => {
-      this.autoScan();
-    }, 1000);
-
     // Enable remote command listening
     this.enableRemoteCommandListener();
 
     // Start keep-alive to maintain connection status
     this.startKeepAlive();
+
+    // Auto-start scanning after short delay
+    setTimeout(() => {
+      this.consoleService.info(
+        'Triggering auto-scan in setTimeout',
+        'TVScanner'
+      );
+      this.autoScan().catch((err) => {
+        this.consoleService.error(
+          'autoScan promise rejected',
+          err,
+          'TVScanner'
+        );
+        this.appendTvStatus(`❌ Auto-Scan failed: ${err}`, 'error');
+      });
+    }, 1000);
   }
 
   private startKeepAlive(): void {
-    // Start immediately (0ms), then repeat every 2 minutes (120000ms)
-    const keepAlive$ = timer(0, 120000).pipe(
+    // Start immediately (0ms), then repeat every 5 seconds (5000ms)
+    const keepAlive$ = timer(0, 5000).pipe(
       switchMap(() => this.tvConnectionService.sendKeepAlive())
     );
 
@@ -219,6 +231,11 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       // Wait for scan to complete
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
+      this.consoleService.info(
+        `Scan completed. Found ${this.scannedFunctions.length} functions.`,
+        'TVScanner'
+      );
+
       if (this.scannedFunctions.length === 0) {
         this.appendTvStatus(
           '⚠️ No TV functions found. Verify this is a TV browser.',
@@ -236,6 +253,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+      this.consoleService.error('autoScan failed', error as Error, 'TVScanner');
       this.appendTvStatus(
         `❌ Auto-Scan Failed!\n\nError: ${errorMessage}\n\n` +
           `💡 Try manual refresh or check TV browser compatibility.`,
@@ -634,6 +652,9 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       this.tvStatusMessage = message;
     }
     this.tvStatusType = type;
+
+    // Trigger change detection
+    this.cdr.detectChanges();
 
     // Auto-scroll to bottom after status update
     setTimeout(() => {

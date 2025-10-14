@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { FunctionData } from './tv-communication.service';
+import { FunctionData } from './tv-function.service';
 
 export interface DeviceInfo {
   userAgent?: string;

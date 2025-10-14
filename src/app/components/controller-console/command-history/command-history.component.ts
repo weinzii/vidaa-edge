@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FunctionResult } from '../../../services/tv-communication.service';
+import { FunctionResult } from '../../../services/tv-command.service';
 
 export interface CommandHistoryEntry {
   functionName: string;
@@ -26,7 +26,6 @@ export class CommandHistoryComponent {
   @Output() historyExpansionToggled = new EventEmitter<number>();
   @Output() historyResultExpansionToggled = new EventEmitter<number>();
   @Output() historyItemDeleted = new EventEmitter<number>();
-  @Output() scrollToTop = new EventEmitter<void>();
 
   onHistoryToggle(index: number): void {
     this.historyExpansionToggled.emit(index);
@@ -38,10 +37,6 @@ export class CommandHistoryComponent {
 
   onDeleteItem(index: number): void {
     this.historyItemDeleted.emit(index);
-  }
-
-  onScrollToTop(): void {
-    this.scrollToTop.emit();
   }
 
   isHistoryExpanded(index: number): boolean {

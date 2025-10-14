@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FunctionData } from '../../../services/tv-communication.service';
+import { FunctionData } from '../../../services/tv-function.service';
 
 interface Category {
   key: string;

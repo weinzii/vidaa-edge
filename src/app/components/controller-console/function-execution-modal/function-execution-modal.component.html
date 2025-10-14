@@ -79,25 +79,46 @@
         >
           📋 Copy
         </button>
-        <button
-          *ngIf="shouldShowExpandButton(executionResult)"
-          (click)="onToggleResultExpansion()"
-          class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
-        >
-          {{ isExecutionResultExpanded ? '▼ Collapse' : '▶ Expand' }}
-        </button>
       </div>
     </div>
-    <pre
-      class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-y-auto text-gray-300"
-      [class.max-h-48]="!isExecutionResultExpanded"
-      [class.max-h-96]="isExecutionResultExpanded"
-      >{{ formatResult(executionResult) }}</pre
-    >
-  </div>
-
-  <!-- Executing Indicator -->
-  <div *ngIf="isExecuting" class="text-center text-orange-400">
-    ⏳ Executing function on TV...
+    <div class="relative">
+      <button
+        *ngIf="shouldShowExpandButton(executionResult)"
+        (click)="onToggleResultExpansion()"
+        class="absolute top-2 right-2 text-gray-400 hover:text-orange-400 transition-colors p-1 bg-customGray-light rounded z-10"
+        [title]="
+          isExecutionResultExpanded ? 'Collapse result' : 'Expand result'
+        "
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            *ngIf="!isExecutionResultExpanded"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+          />
+          <path
+            *ngIf="isExecutionResultExpanded"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
+          />
+        </svg>
+      </button>
+      <pre
+        class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-y-auto text-gray-300"
+        [class.max-h-48]="!isExecutionResultExpanded"
+        [class.max-h-96]="isExecutionResultExpanded"
+        >{{ formatResult(executionResult) }}</pre
+      >
+    </div>
   </div>
 </div>

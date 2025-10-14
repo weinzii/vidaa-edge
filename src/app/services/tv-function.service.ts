@@ -41,10 +41,10 @@ export class TvFunctionService {
 
   /**
    * Start monitoring for new functions from TV.
-   * Polls every 10 seconds.
+   * Polls every 2 seconds for responsive updates.
    */
   private startFunctionMonitoring(): void {
-    interval(10000).subscribe(() => {
+    interval(2000).subscribe(() => {
       this.loadFunctions();
     });
   }
@@ -56,16 +56,47 @@ export class TvFunctionService {
    */
   public receiveFunctions(data: ApiResponse): Observable<unknown> {
     // Validate input
-    if (!data || !data.functions) {
+    if (!data) {
+      const error = new Error('Invalid function data: missing data object');
       this.consoleService.error(
-        'Invalid function data received',
-        new Error('Missing functions array'),
+        'receiveFunctions: data is null or undefined',
+        error,
         'TvFunction'
       );
       return new Observable((observer) => {
-        observer.error(new Error('Invalid function data: missing functions array'));
+        observer.error(error);
       });
     }
+
+    if (!data.functions || !Array.isArray(data.functions)) {
+      const error = new Error(
+        'Invalid function data: missing or invalid functions array'
+      );
+      this.consoleService.error(
+        'receiveFunctions: functions is not an array',
+        error,
+        'TvFunction'
+      );
+      return new Observable((observer) => {
+        observer.error(error);
+      });
+    }
+
+    if (data.functions.length === 0) {
+      const error = new Error('No functions to upload');
+      this.consoleService.warn(
+        'receiveFunctions: empty functions array',
+        'TvFunction'
+      );
+      return new Observable((observer) => {
+        observer.error(error);
+      });
+    }
+
+    this.consoleService.info(
+      `receiveFunctions: Starting upload of ${data.functions.length} functions`,
+      'TvFunction'
+    );
 
     return this.http.post('/api/functions', data).pipe(
       tap(() => {
@@ -106,6 +137,10 @@ export class TvFunctionService {
   private loadFunctions(): void {
     this.http.get<ApiResponse>('/api/functions').subscribe({
       next: (response: ApiResponse) => {
+        console.log(
+          '[TvFunctionService] HTTP GET response:',
+          response.functions?.length || 0
+        );
         if (response.functions && response.functions.length > 0) {
           const mappedFunctions = response.functions.map(
             (func: FunctionData) => ({
@@ -116,7 +151,12 @@ export class TvFunctionService {
             })
           );
 
+          console.log(
+            '[TvFunctionService] Calling functionsSubject.next() with',
+            mappedFunctions.length
+          );
           this.functionsSubject.next(mappedFunctions);
+          console.log('[TvFunctionService] functionsSubject.next() called');
 
           // Update connection status based on data freshness
           if (response.timestamp) {
@@ -144,7 +184,8 @@ export class TvFunctionService {
           if (currentConnection.connected && currentConnection.lastSeen) {
             const timeSinceLastSeen =
               new Date().getTime() - currentConnection.lastSeen.getTime();
-            if (timeSinceLastSeen > 300000) {
+            // TV sends keep-alive every 5 seconds, so disconnect after 10 seconds of silence
+            if (timeSinceLastSeen > 10000) {
               this.tvConnectionService.updateTvConnection({
                 connected: false,
               });

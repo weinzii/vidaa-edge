@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FunctionResult } from '../../../services/tv-communication.service';
+import { FunctionResult } from '../../../services/tv-command.service';
 
 @Component({
   selector: 'app-custom-code-modal',

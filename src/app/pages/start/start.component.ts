@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { GridListComponent } from './components/grid-list/grid-list.component';
 import { ConsoleService } from '../../services/console.service';
-import { VidaaService } from '../../services/vidaa.service';
+import { DeviceInfoService } from '../../services/device-info.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -17,7 +17,7 @@ export class StartComponent implements OnInit {
 
   constructor(
     private consoleService: ConsoleService,
-    private vidaaService: VidaaService
+    private deviceInfoService: DeviceInfoService
   ) {}
 
   ngOnInit() {
@@ -34,7 +34,7 @@ export class StartComponent implements OnInit {
   checkForVidaaDevice() {
     this.consoleService.addLog('Checking: if the device is running Vidaa OS.');
 
-    const firmwareVersion = this.vidaaService.getFirmwareVersion();
+    const firmwareVersion = this.deviceInfoService.getFirmwareVersion();
 
     if (firmwareVersion) {
       this.consoleService.addLog(

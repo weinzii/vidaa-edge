@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { App } from '../../../../models/app';
-import { VidaaService } from '../../../../services/vidaa.service';
+import { AppManagementService } from '../../../../services/app-management.service';
 import { CustomAppModalComponent } from '../custom-app-modal/custom-app-modal.component';
 import { ConsoleService } from '../../../../services/console.service';
 import { environment } from '../../../../../environments/environment';
@@ -13,7 +13,7 @@ import { ToastrService } from 'ngx-toastr';
   imports: [CustomAppModalComponent],
   standalone: true,
 })
-export class GridListComponent implements OnInit {
+export class GridListComponent {
   predefinedApps: App[] = [
     {
       appId: 'jellyfin',
@@ -52,19 +52,15 @@ export class GridListComponent implements OnInit {
   isModalOpen = false;
 
   constructor(
-    private vidaaService: VidaaService,
+    private appManagementService: AppManagementService,
     private consoleService: ConsoleService,
     private toastr: ToastrService
   ) {}
 
-  ngOnInit(): void {
-    // Initialize component
-  }
-
   installApp(app: App) {
     this.toastr.info(`Installing ${app.appName}`);
     this.consoleService.addLog(`Installing  ${app.appName}`);
-    this.vidaaService
+    this.appManagementService
       .installApp(
         app.appId,
         app.appName,
@@ -105,7 +101,7 @@ export class GridListComponent implements OnInit {
   uninstallApp(app: App) {
     this.toastr.info(`Uninstall ${app.appName}`);
     this.consoleService.addLog(`Uninstall  ${app.appName}`);
-    this.vidaaService
+    this.appManagementService
       .uninstallApp(app.appId, app.appName)
       .then((res) => {
         if (res) {

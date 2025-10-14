@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { ConsoleService } from '../../../../services/console.service';
-import { VidaaService } from '../../../../services/vidaa.service';
+import { AppManagementService } from '../../../../services/app-management.service';
 
 @Component({
   selector: 'app-custom-app-modal',
@@ -24,7 +24,7 @@ export class CustomAppModalComponent {
   statusMessage = '';
 
   constructor(
-    private vidaaService: VidaaService,
+    private appManagementService: AppManagementService,
     private consoleService: ConsoleService,
     private toastr: ToastrService
   ) {}
@@ -70,7 +70,7 @@ export class CustomAppModalComponent {
 
     this.toastr.info(`Installing ${app.appName}`);
     this.consoleService.addLog(`Installing  ${app.appName}`);
-    this.vidaaService
+    this.appManagementService
       .installApp(
         app.appId,
         app.appName,
@@ -117,7 +117,7 @@ export class CustomAppModalComponent {
 
     this.toastr.info(`Uninstall ${app.appName}`);
     this.consoleService.addLog(`Uninstall  ${app.appName}`);
-    this.vidaaService
+    this.appManagementService
       .uninstallApp(app.appId, app.appName)
       .then((res) => {
         if (res) {

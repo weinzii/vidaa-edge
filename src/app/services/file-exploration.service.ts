@@ -368,7 +368,10 @@ export class FileExplorationService {
             }
           }
 
-          // Store ignored paths in analysis
+          // Update extractedPaths to only contain new paths
+          analysis.extractedPaths = newPaths;
+          
+          // Store ignored paths separately
           analysis.ignoredPaths = ignoredPaths;
 
           // Add discovered paths to end of queue with source tracking
@@ -816,16 +819,16 @@ export class FileExplorationService {
     }
 
     // 3. Extract paths from file test conditions [ -f path ] (regular files only)
-    // -f = regular file, -r = readable file (we want these)
+    // -f = regular file, -r = readable file, -x = executable (we want these)
     // -d = directory, -e = exists (we DON'T want these, could be directories)
     // Also matches negation: [ ! -f path ]
-    // Note: -f explicitly tests for regular files, so we skip looksLikeFile() check
-    const testMatches = content.match(/\[\s*!?\s*-[fr]\s+([^\]]+)\s*\]/g);
+    // Note: These flags explicitly test for files, so we skip looksLikeFile() check
+    const testMatches = content.match(/\[\s*!?\s*-[frx]\s+([^\]]+)\s*\]/g);
     if (testMatches) {
       for (const match of testMatches) {
-        let path = match.replace(/\[\s*!?\s*-[fr]\s+/, '').replace(/\s*\]/, '');
+        let path = match.replace(/\[\s*!?\s*-[frx]\s+/, '').replace(/\s*\]/, '');
         path = this.resolveVariables(path);
-        // Skip looksLikeFile() - if a script tests with -f, it IS a file
+        // Skip looksLikeFile() - if a script tests with -f/-r/-x, it IS a file
         if (this.isValidPath(path)) {
           paths.add(path);
         }

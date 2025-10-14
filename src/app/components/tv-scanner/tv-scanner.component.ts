@@ -1,11 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  TvCommunicationService,
-  RemoteCommandCheck,
-  RemoteCommand,
-  FunctionResult,
-} from '../../services/tv-communication.service';
+import { TvConnectionService } from '../../services/tv-connection.service';
+import { TvFunctionService } from '../../services/tv-function.service';
+import { TvPollingService, RemoteCommandCheck, RemoteCommand } from '../../services/tv-polling.service';
+import { FunctionResult } from '../../services/tv-command.service';
 import { Subscription, interval, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { ConsoleService } from '../../services/console.service';
@@ -44,7 +42,9 @@ export class TvScannerComponent implements OnInit, OnDestroy {
   private subscriptions = new Subscription();
 
   constructor(
-    private tvCommunicationService: TvCommunicationService,
+    private tvConnectionService: TvConnectionService,
+    private tvFunctionService: TvFunctionService,
+    private tvPollingService: TvPollingService,
     private consoleService: ConsoleService
   ) {}
 
@@ -144,10 +144,11 @@ export class TvScannerComponent implements OnInit, OnDestroy {
         'info'
       );
 
-      this.tvCommunicationService.receiveFunctions(functionData).subscribe({
-        next: (response) => {
+      this.tvFunctionService.receiveFunctions(functionData).subscribe({
+        next: (response: unknown) => {
+          const typedResponse = response as { success: boolean; count: number };
           this.appendTvStatus(
-            `📤 Server Response: ${JSON.stringify(response)}`,
+            `📤 Server Response: ${JSON.stringify(typedResponse)}`,
             'info'
           );
           this.appendTvStatus(
@@ -155,7 +156,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
             'success'
           );
         },
-        error: (error) => {
+        error: (error: Error) => {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           this.appendTvStatus(`❌ Upload failed: ${errorMessage}`, 'error');
@@ -191,7 +192,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
   private startKeepAlive(): void {
     // Start immediately (0ms), then repeat every 2 minutes (120000ms)
     const keepAlive$ = timer(0, 120000).pipe(
-      switchMap(() => this.tvCommunicationService.sendKeepAlive())
+      switchMap(() => this.tvConnectionService.sendKeepAlive())
     );
 
     this.subscriptions.add(
@@ -262,14 +263,14 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     };
 
     // Send to controller without saving to disk
-    this.tvCommunicationService.receiveFunctions(functionData).subscribe({
+    this.tvFunctionService.receiveFunctions(functionData).subscribe({
       next: () => {
         this.appendTvStatus(
           `📤 Functions sent to controller successfully!`,
           'success'
         );
       },
-      error: (error) => {
+      error: (error: Error) => {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         this.appendTvStatus(
@@ -685,7 +686,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
 
     // Poll for commands every 3 seconds
     const pollingSubscription = interval(3000).subscribe(() => {
-      this.tvCommunicationService.checkForCommands().subscribe({
+      this.tvPollingService.checkForCommands().subscribe({
         next: (commandData: RemoteCommandCheck) => {
           if (commandData.hasCommand && commandData.command) {
             // Wake up from screensaver on command received
@@ -872,13 +873,13 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       timestamp: string;
     }
   ): void {
-    this.tvCommunicationService
+    this.tvPollingService
       .receiveCommandResult(commandId, result)
       .subscribe({
         next: () => {
           this.appendTvStatus(`✅ Result sent back to PC`, 'success');
         },
-        error: (error) => {
+        error: (error: Error) => {
           this.consoleService.error(
             'Failed to send result',
             error,

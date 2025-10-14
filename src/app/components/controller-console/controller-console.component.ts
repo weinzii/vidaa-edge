@@ -1,12 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  TvCommunicationService,
-  FunctionData,
-  TVConnectionInfo,
-  FunctionResult,
-} from '../../services/tv-communication.service';
+import { TvConnectionService, TVConnectionInfo } from '../../services/tv-connection.service';
+import { TvFunctionService, FunctionData } from '../../services/tv-function.service';
+import { TvCommandService, FunctionResult } from '../../services/tv-command.service';
 import {
   FunctionFileGeneratorService,
   type GeneratedFiles,
@@ -75,7 +72,9 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   private subscriptions = new Subscription();
 
   constructor(
-    private tvCommunicationService: TvCommunicationService,
+    private tvConnectionService: TvConnectionService,
+    private tvFunctionService: TvFunctionService,
+    private tvCommandService: TvCommandService,
     private functionFileGenerator: FunctionFileGeneratorService,
     private consoleService: ConsoleService
   ) {}
@@ -93,7 +92,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   private initConnection(): void {
     // Subscribe to TV functions
     const functionsSubscription =
-      this.tvCommunicationService.functions$.subscribe({
+      this.tvFunctionService.functions$.subscribe({
         next: (functions: FunctionData[]) => {
           if (functions && functions.length > 0) {
             this.availableFunctions = functions;
@@ -109,8 +108,8 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
 
     // Subscribe to connection status
     const connectionSubscription =
-      this.tvCommunicationService.tvConnection$.subscribe({
-        next: (connection) => {
+      this.tvConnectionService.tvConnection$.subscribe({
+        next: (connection: TVConnectionInfo) => {
           this.tvConnection = connection;
         },
       });
@@ -381,7 +380,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
       },
     ];
 
-    this.tvCommunicationService.saveFilesToPublic(filesToSave).subscribe({
+    this.tvFunctionService.saveFilesToPublic(filesToSave).subscribe({
       next: (response: { saved: string[] }) => {
         alert(
           `✅ ${
@@ -436,8 +435,8 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     try {
       const result = await firstValueFrom(
         isCustomCode
-          ? this.tvCommunicationService.executeCustomCode(customCode)
-          : this.tvCommunicationService.executeFunction(
+          ? this.tvCommandService.executeCustomCode(customCode)
+          : this.tvCommandService.executeFunction(
               functionName,
               parameters
             )

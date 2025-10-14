@@ -6,56 +6,7 @@ import { FormsModule } from '@angular/forms';
   selector: 'app-code-modal',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  template: `
-    <div
-      *ngIf="isOpen"
-      class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
-      (click)="onBackdropClick($event)"
-    >
-      <div
-        class="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        (click)="$event.stopPropagation()"
-      >
-        <!-- Header -->
-        <div
-          class="flex items-center justify-between p-4 border-b border-gray-700"
-        >
-          <h2 class="text-xl font-bold text-blue-400">
-            {{ title }}
-          </h2>
-          <button
-            (click)="close()"
-            class="text-gray-400 hover:text-white text-2xl leading-none"
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto p-4">
-          <ng-content></ng-content>
-        </div>
-
-        <!-- Footer -->
-        <div class="p-4 border-t border-gray-700 flex justify-end gap-2">
-          <button
-            (click)="close()"
-            class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded transition-colors"
-          >
-            Close
-          </button>
-          <button
-            *ngIf="showExecuteButton"
-            (click)="execute()"
-            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors"
-          >
-            🚀 Execute
-          </button>
-        </div>
-      </div>
-    </div>
-  `,
+  templateUrl: './code-modal.component.html',
   styles: [],
 })
 export class CodeModalComponent {

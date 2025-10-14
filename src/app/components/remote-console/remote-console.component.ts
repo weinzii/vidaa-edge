@@ -8,13 +8,7 @@ import { ControllerConsoleComponent } from '../controller-console/controller-con
   selector: 'app-remote-console',
   standalone: true,
   imports: [CommonModule, TvScannerComponent, ControllerConsoleComponent],
-  template: `
-    <!-- TV Mode: Show TV Scanner Component -->
-    <app-tv-scanner *ngIf="isTvMode"></app-tv-scanner>
-
-    <!-- Controller Mode: Show Controller Console Component -->
-    <app-controller-console *ngIf="!isTvMode"></app-controller-console>
-  `,
+  templateUrl: './remote-console.component.html',
   styles: [],
 })
 export class RemoteConsoleComponent implements OnInit {

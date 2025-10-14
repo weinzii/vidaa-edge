@@ -48,19 +48,9 @@ export const appRoutes: Route[] = [
     ],
   },
   {
-    path: 'function-explorer',
-    redirectTo: 'console',
-    pathMatch: 'full',
-  },
-  {
     path: 'console',
     component: RemoteConsoleComponent,
     title: 'Vidaahub - Remote Console',
-  },
-  {
-    path: 'remote-console',
-    redirectTo: 'console',
-    pathMatch: 'full',
   },
   {
     path: '**',

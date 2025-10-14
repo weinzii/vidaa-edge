@@ -1,0 +1,488 @@
+<div class="h-screen flex flex-col bg-customGray overflow-hidden">
+  <!-- Header -->
+  <div class="flex-shrink-0 bg-purple-900 border-b border-purple-700 shadow-sm">
+    <div class="px-4 py-3">
+      <h2 class="text-xl font-bold text-purple-200 mb-3">
+        📂 File System Explorer
+      </h2>
+      <div class="flex gap-2 flex-wrap">
+        <button
+          *ngIf="canStart"
+          (click)="startScan()"
+          class="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+        >
+          ▶️ Start Scan
+        </button>
+
+        <button
+          *ngIf="isScanning"
+          (click)="pauseScan()"
+          class="px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium transition-colors"
+        >
+          ⏸️ Pause
+        </button>
+
+        <button
+          *ngIf="isPaused"
+          (click)="resumeScan()"
+          class="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+        >
+          ▶️ Resume
+        </button>
+
+        <button
+          *ngIf="!canStart"
+          (click)="stopScan()"
+          class="px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+        >
+          ⏹️ Stop
+        </button>
+
+        <button
+          *ngIf="results.length > 0"
+          (click)="exportResults()"
+          class="px-3 py-1.5 rounded bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium transition-colors"
+        >
+          💾 Export JSON
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div
+    *ngIf="session"
+    class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4 py-2"
+  >
+    <div class="flex justify-between text-xs text-gray-400 mb-1">
+      <span
+        >Progress: {{ stats.progress }}% ({{ session.scannedPaths }}/{{
+          stats.totalFiles
+        }})</span
+      >
+      <span
+        class="px-2 py-0.5 rounded text-xs font-medium"
+        [ngClass]="{
+          'bg-green-900 text-green-300': isScanning,
+          'bg-orange-900 text-orange-300': isPaused
+        }"
+      >
+        {{ session.status }}
+      </span>
+    </div>
+    <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+      <div
+        class="bg-orange-500 h-full transition-all duration-300"
+        [style.width.%]="stats.progress"
+      ></div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div
+    *ngIf="session"
+    class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4 py-2"
+  >
+    <div class="grid grid-cols-5 gap-3">
+      <div class="bg-customGray border border-gray-700 rounded p-2 text-center">
+        <div class="text-lg font-bold text-green-500">
+          {{ stats.successCount }}
+        </div>
+        <div class="text-xs text-gray-400">✅ Success</div>
+      </div>
+      <div class="bg-customGray border border-gray-700 rounded p-2 text-center">
+        <div class="text-lg font-bold text-red-500">
+          {{ stats.failedCount }}
+        </div>
+        <div class="text-xs text-gray-400">❌ Failed</div>
+      </div>
+      <div class="bg-customGray border border-gray-700 rounded p-2 text-center">
+        <div class="text-lg font-bold text-blue-500">{{ stats.textCount }}</div>
+        <div class="text-xs text-gray-400">📄 Text Files</div>
+      </div>
+      <div class="bg-customGray border border-gray-700 rounded p-2 text-center">
+        <div class="text-lg font-bold text-purple-500">
+          {{ stats.binaryCount }}
+        </div>
+        <div class="text-xs text-gray-400">📦 Binary Files</div>
+      </div>
+      <div class="bg-customGray border border-gray-700 rounded p-2 text-center">
+        <div class="text-lg font-bold text-orange-400">
+          {{ stats.pathsDiscovered }}
+        </div>
+        <div class="text-xs text-gray-400">🔍 Paths Queued</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div
+    class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4 py-2"
+  >
+    <div class="flex items-center gap-4 flex-wrap">
+      <span class="text-sm font-semibold text-gray-300">Filter:</span>
+      <label
+        class="flex items-center gap-1.5 text-sm text-gray-400 cursor-pointer hover:text-gray-200"
+      >
+        <input
+          type="checkbox"
+          class="rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500"
+          [checked]="showSuccess"
+          (change)="toggleFilter('success')"
+        />
+        <span>Show Success</span>
+      </label>
+      <label
+        class="flex items-center gap-1.5 text-sm text-gray-400 cursor-pointer hover:text-gray-200"
+      >
+        <input
+          type="checkbox"
+          class="rounded border-gray-600 bg-gray-700 text-red-500 focus:ring-red-500"
+          [checked]="showFailed"
+          (change)="toggleFilter('failed')"
+        />
+        <span>Show Failed</span>
+      </label>
+      <label
+        class="flex items-center gap-1.5 text-sm text-gray-400 cursor-pointer hover:text-gray-200"
+      >
+        <input
+          type="checkbox"
+          class="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+          [checked]="showText"
+          (change)="toggleFilter('text')"
+        />
+        <span>Show Text</span>
+      </label>
+      <label
+        class="flex items-center gap-1.5 text-sm text-gray-400 cursor-pointer hover:text-gray-200"
+      >
+        <input
+          type="checkbox"
+          class="rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-purple-500"
+          [checked]="showBinary"
+          (change)="toggleFilter('binary')"
+        />
+        <span>Show Binary</span>
+      </label>
+      <input
+        type="text"
+        placeholder="🔍 Search paths..."
+        class="ml-auto px-3 py-1.5 bg-customGray border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        [value]="searchTerm"
+        (input)="onSearchChange($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Results Split View -->
+  <div class="flex-1 min-h-0 grid grid-cols-2 gap-4 p-4">
+    <!-- File List -->
+    <div
+      class="flex flex-col bg-customGray-light border border-gray-700 rounded-lg shadow overflow-hidden"
+    >
+      <div
+        class="flex-shrink-0 px-4 py-2 bg-purple-900 border-b border-purple-700"
+      >
+        <h3 class="text-sm font-semibold text-purple-200">
+          Found Files ({{ filteredResults.length }})
+        </h3>
+      </div>
+
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        <div
+          *ngFor="let result of filteredResults"
+          [attr.data-path]="result.path"
+          class="flex items-start gap-2 px-4 py-2 border-b border-gray-700 hover:bg-customGray cursor-pointer transition-colors"
+          [class.bg-customGray]="selectedFile === result"
+          [class.border-l-4]="selectedFile === result"
+          [class.border-l-orange-500]="selectedFile === result"
+          (click)="selectFile(result)"
+          (keyup.enter)="selectFile(result)"
+          (keyup.space)="selectFile(result)"
+          tabindex="0"
+          role="button"
+        >
+          <span class="text-xl flex-shrink-0">{{ getFileIcon(result) }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm text-gray-200 break-all">{{ result.path }}</div>
+            <div
+              class="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap"
+            >
+              <span
+                class="px-1.5 py-0.5 rounded font-medium"
+                [ngClass]="{
+                  'bg-green-900 text-green-300': result.status === 'success',
+                  'bg-orange-900 text-orange-300':
+                    result.status === 'access-denied' ||
+                    result.status === 'not-found',
+                  'bg-red-900 text-red-300': result.status === 'error'
+                }"
+                >{{ result.status }}</span
+              >
+              <span *ngIf="result.status === 'success'">
+                • {{ result.isBinary ? 'Binary' : 'Text' }} •
+                {{ formatSize(result.size) }}
+              </span>
+              <span *ngIf="result.extractedPaths.length > 0">
+                • 🔗 {{ result.extractedPaths.length }} paths
+              </span>
+              <span
+                *ngIf="result.discoveredFrom"
+                class="text-purple-400"
+                title="Discovered from {{ result.discoveredFrom }}"
+              >
+                • 📍 from file
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          *ngIf="filteredResults.length === 0"
+          class="flex flex-col items-center justify-center h-full min-h-[300px] text-gray-500"
+        >
+          <div class="text-6xl mb-4">📂</div>
+          <p class="text-sm" *ngIf="!session">
+            Click "Start Scan" to begin exploration
+          </p>
+          <p class="text-sm" *ngIf="session && results.length === 0">
+            Scanning...
+          </p>
+          <p class="text-sm" *ngIf="session && results.length > 0">
+            No files match the current filters
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Details -->
+    <div
+      class="flex flex-col bg-customGray-light border border-gray-700 rounded-lg shadow overflow-hidden"
+    >
+      <div
+        *ngIf="!selectedFile"
+        class="flex flex-col items-center justify-center h-full text-gray-500"
+      >
+        <div class="text-6xl mb-4">📄</div>
+        <p class="text-sm">Select a file to view details</p>
+      </div>
+
+      <div *ngIf="selectedFile" class="flex flex-col h-full">
+        <div
+          class="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-purple-900 border-b border-purple-700"
+        >
+          <h3 class="text-sm font-semibold text-purple-200 break-all">
+            {{ getFileIcon(selectedFile) }} {{ selectedFile.path }}
+          </h3>
+          <button
+            class="ml-2 px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors flex-shrink-0"
+            (click)="copyToClipboard(selectedFile.path)"
+            title="Copy path"
+          >
+            📋
+          </button>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          <!-- Discovered From (Source File) -->
+          <div
+            *ngIf="selectedFile.discoveredFrom"
+            class="p-3 bg-purple-900/20 border border-purple-700 rounded space-y-1"
+          >
+            <p class="text-xs font-semibold text-purple-300">
+              📍 Discovered From:
+            </p>
+            <button
+              class="text-sm text-orange-400 hover:text-orange-300 underline cursor-pointer break-all text-left"
+              (click)="selectFile(selectedFile.discoveredFrom)"
+              title="Click to view source file"
+            >
+              {{ selectedFile.discoveredFrom }}
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 text-sm">
+              <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+                >Status:</span
+              >
+              <span
+                class="px-2 py-0.5 rounded text-xs font-medium"
+                [ngClass]="{
+                  'bg-green-900 text-green-300':
+                    selectedFile.status === 'success',
+                  'bg-orange-900 text-orange-300':
+                    selectedFile.status === 'access-denied' ||
+                    selectedFile.status === 'not-found',
+                  'bg-red-900 text-red-300': selectedFile.status === 'error'
+                }"
+                >{{ selectedFile.status }}</span
+              >
+            </div>
+            <div
+              class="flex items-center gap-2 text-sm"
+              *ngIf="selectedFile.status === 'success'"
+            >
+              <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+                >Type:</span
+              >
+              <span class="text-gray-200">{{ selectedFile.fileType }}</span>
+            </div>
+            <div
+              class="flex items-center gap-2 text-sm"
+              *ngIf="selectedFile.status === 'success'"
+            >
+              <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+                >Size:</span
+              >
+              <span class="text-gray-200">{{
+                formatSize(selectedFile.size)
+              }}</span>
+            </div>
+            <div
+              class="flex items-center gap-2 text-sm"
+              *ngIf="selectedFile.magicBytes"
+            >
+              <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+                >Magic Bytes:</span
+              >
+              <span
+                class="font-mono text-xs bg-gray-900 border border-gray-700 px-2 py-1 rounded text-gray-200"
+                >{{ selectedFile.magicBytes }}</span
+              >
+            </div>
+            <div
+              class="flex items-center gap-2 text-sm"
+              *ngIf="selectedFile.confidence"
+            >
+              <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+                >Confidence:</span
+              >
+              <span class="text-gray-200"
+                >{{ (selectedFile.confidence * 100).toFixed(1) }}%</span
+              >
+            </div>
+            <div
+              class="flex items-center gap-2 text-sm"
+              *ngIf="selectedFile.error"
+            >
+              <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+                >Error:</span
+              >
+              <span class="text-red-400">{{ selectedFile.error }}</span>
+            </div>
+          </div>
+
+          <!-- Extracted Paths -->
+          <div
+            *ngIf="
+              selectedFile.extractedPaths.length > 0 ||
+              selectedFile.ignoredPaths?.length
+            "
+            class="space-y-2"
+          >
+            <h4 class="text-sm font-bold text-purple-200">
+              🔗 Extracted Paths ({{ selectedFile.extractedPaths.length
+              }}<span
+                *ngIf="selectedFile.ignoredPaths?.length"
+                class="text-gray-400"
+                >, {{ selectedFile.ignoredPaths?.length }} ignored</span
+              >)
+            </h4>
+
+            <!-- New Paths -->
+            <div
+              *ngIf="selectedFile.extractedPaths.length > 0"
+              class="space-y-1"
+            >
+              <div
+                *ngFor="let path of selectedFile.extractedPaths"
+                class="flex items-center justify-between gap-2 px-2 py-1 bg-customGray border border-green-700 rounded text-xs break-all"
+              >
+                <span class="text-gray-300">{{ path }}</span>
+                <button
+                  class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors flex-shrink-0"
+                  (click)="copyToClipboard(path)"
+                  title="Copy"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+
+            <!-- Ignored Paths (already in queue/scanned) -->
+            <div
+              *ngIf="selectedFile.ignoredPaths?.length"
+              class="space-y-1 mt-2"
+            >
+              <p class="text-xs text-gray-400 italic">
+                ⚠️ Already in queue/scanned:
+              </p>
+              <div
+                *ngFor="let path of selectedFile.ignoredPaths"
+                class="flex items-center justify-between gap-2 px-2 py-1 bg-customGray border border-gray-600 rounded text-xs break-all opacity-60"
+              >
+                <span class="text-gray-400">{{ path }}</span>
+                <button
+                  class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors flex-shrink-0"
+                  (click)="copyToClipboard(path)"
+                  title="Copy"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Preview -->
+          <div
+            *ngIf="selectedFile.status === 'success' && !selectedFile.isBinary"
+            class="space-y-2"
+          >
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-bold text-purple-200">
+                📄 Content Preview
+              </h4>
+              <button
+                class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                (click)="copyToClipboard(selectedFile.content || '')"
+                title="Copy full content"
+              >
+                📋 Copy All
+              </button>
+            </div>
+            <pre
+              class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto font-mono whitespace-pre-wrap break-all"
+              >{{ selectedFile.contentPreview }}</pre
+            >
+            <div
+              *ngIf="
+                selectedFile.content && selectedFile.content.length > 10000
+              "
+              class="text-xs text-gray-500 italic"
+            >
+              (Showing first 1000 characters. Full content available in export.)
+            </div>
+          </div>
+
+          <!-- Binary Preview -->
+          <div
+            *ngIf="selectedFile.status === 'success' && selectedFile.isBinary"
+            class="p-4 bg-customGray border border-gray-700 rounded space-y-2"
+          >
+            <p class="text-sm text-gray-300">
+              🔒 Binary file detected. Type:
+              <strong class="text-purple-200">{{
+                selectedFile.fileType
+              }}</strong>
+            </p>
+            <p class="text-sm text-gray-300">
+              Size: {{ formatSize(selectedFile.size) }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

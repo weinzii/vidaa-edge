@@ -7,6 +7,7 @@ import { SelfHostedComponent } from './pages/documentation/pages/self-hosted/sel
 import { ApiComponent } from './pages/documentation/pages/api/api.component';
 import { InstallationComponent } from './pages/documentation/pages/installation/installation.component';
 import { RemoteConsoleComponent } from './components/remote-console/remote-console.component';
+import { FileExplorerComponent } from './components/file-explorer/file-explorer.component';
 
 export const appRoutes: Route[] = [
   {
@@ -51,6 +52,11 @@ export const appRoutes: Route[] = [
     path: 'console',
     component: RemoteConsoleComponent,
     title: 'Vidaahub - Remote Console',
+  },
+  {
+    path: 'file-explorer',
+    component: FileExplorerComponent,
+    title: 'Vidaahub - File System Explorer',
   },
   {
     path: '**',

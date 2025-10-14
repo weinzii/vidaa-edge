@@ -696,6 +696,25 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     return info;
   }
 
+  /**
+   * Truncate long return values for status display
+   */
+  private truncateResult(value: unknown, maxLength = 100): string {
+    try {
+      const stringified = JSON.stringify(value);
+      if (stringified.length <= maxLength) {
+        return stringified;
+      }
+      return stringified.substring(0, maxLength) + '...';
+    } catch {
+      const strValue = String(value);
+      if (strValue.length <= maxLength) {
+        return strValue;
+      }
+      return strValue.substring(0, maxLength) + '...';
+    }
+  }
+
   private enableRemoteCommandListener(): void {
     this.isRemoteControlEnabled = true;
     this.remoteControlStatus = 'ACTIVE';
@@ -771,7 +790,9 @@ export class TvScannerComponent implements OnInit, OnDestroy {
           result.data = output;
 
           this.appendTvStatus(
-            `✅ Custom code executed successfully → ${JSON.stringify(output)}`,
+            `✅ Custom code executed successfully → ${this.truncateResult(
+              output
+            )}`,
             'success'
           );
         } catch (execError) {
@@ -810,7 +831,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
             this.appendTvStatus(
               `📡 Remote: ${command.function}(${(command.parameters || []).join(
                 ', '
-              )}) → ${JSON.stringify(output)}`,
+              )}) → ${this.truncateResult(output)}`,
               'success'
             );
           } catch (execError) {
@@ -842,7 +863,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
             this.appendTvStatus(
               `📡 Remote: ${command.function}(${(command.parameters || []).join(
                 ', '
-              )}) → ${JSON.stringify(output)}`,
+              )}) → ${this.truncateResult(output)}`,
               'success'
             );
           } catch (execError) {

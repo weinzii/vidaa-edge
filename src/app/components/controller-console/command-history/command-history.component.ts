@@ -3,7 +3,6 @@ import {
   Input,
   Output,
   EventEmitter,
-  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FunctionResult } from '../../../services/tv-communication.service';
@@ -23,7 +22,6 @@ export interface CommandHistoryEntry {
   imports: [CommonModule],
   templateUrl: './command-history.component.html',
   styleUrls: ['./command-history.component.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CommandHistoryComponent {
   @Input() commandHistory: CommandHistoryEntry[] = [];

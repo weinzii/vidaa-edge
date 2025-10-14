@@ -38,7 +38,9 @@ export class ConsoleService {
   }
 
   error(message: string, error?: unknown, context?: string): void {
-    const fullMessage = error ? `${message}: ${error instanceof Error ? error.message : String(error)}` : message;
+    const fullMessage = error
+      ? `${message}: ${error instanceof Error ? error.message : String(error)}`
+      : message;
     this.log('error', fullMessage, context);
     console.error(`[${context || 'App'}] ${fullMessage}`, error);
   }

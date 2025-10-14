@@ -24,7 +24,11 @@ export class CopyToClipboardComponent {
         }, 2000);
       },
       (err) => {
-        this.consoleService.error('Failed to copy to clipboard', err, 'CopyToClipboard');
+        this.consoleService.error(
+          'Failed to copy to clipboard',
+          err,
+          'CopyToClipboard'
+        );
       }
     );
   }

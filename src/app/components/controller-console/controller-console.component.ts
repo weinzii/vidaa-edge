@@ -5,6 +5,7 @@ import {
   TvCommunicationService,
   FunctionData,
   TVConnectionInfo,
+  FunctionResult,
 } from '../../services/tv-communication.service';
 import {
   FunctionFileGeneratorService,
@@ -33,14 +34,14 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   // Execution Properties
   parameterValues: string[] = [];
   isExecuting = false;
-  executionResult: unknown = null;
+  executionResult: FunctionResult = null;
   commandHistory: Array<{
     functionName: string;
     parameters?: unknown[];
     customCode?: string; // Store custom code for display
     timestamp: Date;
     success: boolean;
-    result?: unknown;
+    result?: FunctionResult;
   }> = [];
   expandedHistoryItems: Set<number> = new Set();
   expandedHistoryResults: Set<number> = new Set();
@@ -69,7 +70,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   showCustomCodeModal = false;
   showExecutionModal = false;
   customJsCode = '';
-  customCodeResult: unknown = null;
+  customCodeResult: FunctionResult = null;
   isExecutingCustomCode = false;
   isExecutionResultExpanded = false;
   isCustomCodeResultExpanded = false;
@@ -496,11 +497,12 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
             )
       );
 
-      // Set result
+      // Set result (cast from unknown to FunctionResult)
+      const functionResult = result as FunctionResult;
       if (isCustomCode) {
-        this.customCodeResult = result;
+        this.customCodeResult = functionResult;
       } else {
-        this.executionResult = result;
+        this.executionResult = functionResult;
       }
 
       // Add to command history (both custom code and functions)
@@ -510,7 +512,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         customCode: isCustomCode ? customCode : undefined, // Store custom code
         timestamp: new Date(),
         success: true,
-        result: result,
+        result: functionResult,
       });
       this.saveCommandHistory();
     } catch (error) {
@@ -618,7 +620,11 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         // Success
       },
       (err) => {
-        this.consoleService.error('Failed to copy to clipboard', err, 'ControllerConsole');
+        this.consoleService.error(
+          'Failed to copy to clipboard',
+          err,
+          'ControllerConsole'
+        );
         // Fallback: Try the old method
         this.fallbackCopyToClipboard(resultText);
       }
@@ -635,7 +641,11 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     try {
       document.execCommand('copy');
     } catch (err) {
-      this.consoleService.error('Fallback copy failed', err, 'ControllerConsole');
+      this.consoleService.error(
+        'Fallback copy failed',
+        err,
+        'ControllerConsole'
+      );
     }
     document.body.removeChild(textArea);
   }
@@ -652,14 +662,18 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         // Success
       },
       (err) => {
-        this.consoleService.error('Failed to copy to clipboard', err, 'ControllerConsole');
+        this.consoleService.error(
+          'Failed to copy to clipboard',
+          err,
+          'ControllerConsole'
+        );
         // Fallback: Try the old method
         this.fallbackCopyToClipboard(resultText);
       }
     );
   }
 
-  formatResult(result: unknown): string {
+  formatResult(result: FunctionResult): string {
     if (result === null || result === undefined) {
       return 'null';
     }
@@ -745,7 +759,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     return this.expandedHistoryResults.has(index);
   }
 
-  shouldShowExpandButton(result: unknown): boolean {
+  shouldShowExpandButton(result: FunctionResult): boolean {
     const formatted = this.formatResult(result);
     const lines = formatted.split('\n');
     return lines.length > 5;
@@ -832,7 +846,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
             customCode?: string;
             timestamp: string;
             success: boolean;
-            result?: unknown;
+            result?: FunctionResult;
           }) => ({
             ...cmd,
             timestamp: new Date(cmd.timestamp),
@@ -840,7 +854,11 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         );
       }
     } catch (error) {
-      this.consoleService.error('Failed to load command history', error, 'ControllerConsole');
+      this.consoleService.error(
+        'Failed to load command history',
+        error,
+        'ControllerConsole'
+      );
       this.commandHistory = [];
     }
   }
@@ -852,7 +870,11 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         JSON.stringify(this.commandHistory)
       );
     } catch (error) {
-      this.consoleService.error('Failed to save command history', error, 'ControllerConsole');
+      this.consoleService.error(
+        'Failed to save command history',
+        error,
+        'ControllerConsole'
+      );
     }
   }
 

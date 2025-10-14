@@ -4,6 +4,9 @@ import { BehaviorSubject, Observable, interval } from 'rxjs';
 import { tap, catchError, switchMap, timeout } from 'rxjs/operators';
 import { ConsoleService } from './console.service';
 
+// Type alias for function execution results
+export type FunctionResult = string | number | boolean | null | undefined | object | FunctionResult[];
+
 export interface TVConnectionInfo {
   connected: boolean;
   lastSeen: Date | null;
@@ -18,7 +21,7 @@ export interface CommandQueueItem {
   parameters?: Record<string, unknown> | unknown[];
   timestamp: Date;
   status: 'pending' | 'sent' | 'completed' | 'timeout';
-  result?: unknown;
+  result?: FunctionResult;
 }
 
 export interface FunctionData {
@@ -39,7 +42,7 @@ export interface CommandResponse {
   commandId: string;
   success?: boolean;
   waiting?: boolean;
-  data?: unknown;
+  data?: FunctionResult;
   error?: string | null;
   function?: string;
 }
@@ -54,7 +57,7 @@ export interface RemoteCommand {
   function: string;
   parameters: unknown[];
   success: boolean;
-  data: unknown;
+  data: FunctionResult;
   error: string | null;
   timestamp: string;
 }
@@ -364,7 +367,10 @@ export class TvCommunicationService {
           observer.complete();
         },
         error: () => {
-          this.consoleService.debug('Command API not reachable (polling)', 'TVCommunication');
+          this.consoleService.debug(
+            'Command API not reachable (polling)',
+            'TVCommunication'
+          );
           observer.next({ hasCommand: false });
           observer.complete();
         },

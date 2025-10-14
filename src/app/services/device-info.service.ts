@@ -17,7 +17,10 @@ export class DeviceInfoService {
   getFirmwareVersion(): string | null {
     try {
       if (typeof Hisense_GetFirmWareVersion === 'undefined') {
-        this.consoleService.warn('Hisense_GetFirmWareVersion is not available', 'DeviceInfo');
+        this.consoleService.warn(
+          'Hisense_GetFirmWareVersion is not available',
+          'DeviceInfo'
+        );
         return null;
       }
       return Hisense_GetFirmWareVersion();
@@ -61,7 +64,11 @@ export class DeviceInfoService {
       }
       return Hisense_GetCountryCode();
     } catch (error) {
-      this.consoleService.error('Error getting country code', error, 'DeviceInfo');
+      this.consoleService.error(
+        'Error getting country code',
+        error,
+        'DeviceInfo'
+      );
       return null;
     }
   }
@@ -97,7 +104,11 @@ export class DeviceInfoService {
       }
       return Hisense_GetModelName();
     } catch (error) {
-      this.consoleService.error('Error getting TV model name', error, 'DeviceInfo');
+      this.consoleService.error(
+        'Error getting TV model name',
+        error,
+        'DeviceInfo'
+      );
       return null;
     }
   }
@@ -114,7 +125,11 @@ export class DeviceInfoService {
       }
       return Hisense_Get4KSupportState();
     } catch (error) {
-      this.consoleService.error('Error checking 4K support', error, 'DeviceInfo');
+      this.consoleService.error(
+        'Error checking 4K support',
+        error,
+        'DeviceInfo'
+      );
       return null;
     }
   }

@@ -4,6 +4,7 @@ import {
   TvCommunicationService,
   RemoteCommandCheck,
   RemoteCommand,
+  FunctionResult,
 } from '../../services/tv-communication.service';
 import { Subscription, interval, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -847,18 +848,23 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     } finally {
       // ALWAYS send result back, even if there was an error
       // This prevents the PC from waiting forever
-      this.sendResultBackToPC(command.id, result);
+      // Cast result.data from unknown to FunctionResult for type safety
+      const typedResult = {
+        ...result,
+        data: result.data as FunctionResult,
+      };
+      this.sendResultToServer(command.id, typedResult);
     }
   }
 
-  private sendResultBackToPC(
+  private sendResultToServer(
     commandId: string,
     result: {
       commandId: string;
       function: string;
       parameters: unknown[];
       success: boolean;
-      data: unknown;
+      data: FunctionResult;
       error: string | null;
       timestamp: string;
     }

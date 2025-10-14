@@ -1,94 +1,157 @@
-# VidaaEdge - VIDAA TV Development Toolkit
+# VidaaEdge - VIDAA TV Development & Remote Control Toolkit
 
 [!["Drop me a Coin"](https://coindrop.to/embed-button.png)](https://coindrop.to/weinzii)
 
-This project provides comprehensive development tools for VidaaOS-based TVs, including filesystem exploration, API analysis, and custom app installation capabilities.
+A development toolkit for VidaaOS-based TVs enabling remote function exploration, custom JavaScript execution, and app installation.
 
 **Status:** Development toolkit - use at your own risk.
 
-Credits go to [BananaMafia](https://bananamafia.dev/post/hisensehax/) for discovering the directory traversal exploits that enabled this research.
+**Credits:**
 
-## 🛠️ Development Tools
+- Original project by [weinzii](https://github.com/weinzii/vidaa-edge)
+- This fork focuses on JavaScript execution and function exploration improvements
+- Exploit research by [BananaMafia](https://bananamafia.dev/post/hisensehax/)
 
-### Function Explorer & Analyzer
+## Features
 
-- **API Discovery:** Extract and analyze all available VIDAA TV functions
-- **Source Code Export:** Export function definitions as TypeScript declarations
-- **Development Bridge:** Transfer functions from TV to development machine
-- **Real-time Analysis:** Live function inspection and documentation
+### Remote Function Execution
 
-### Custom App Installation
+- Execute VIDAA TV functions from your laptop/PC
+- Custom JavaScript runner with full-screen editor
+- Real-time results with expandable views
+- Persistent command history with timestamps
 
-- **PWA Support:** Install Progressive Web Apps on VidaaOS TVs
-- **Self-hosted Options:** Deploy and manage custom applications
-- **DNS Configuration:** Enable API access through network configuration
+### Function Explorer
 
-## 🚀 Quick Start
+- Automatic discovery of all Hisense/VIDAA functions
+- Source code extraction and parameter detection
+- One-click copy to custom code editor
+- Category-based organization and search
 
-### Development Mode
+### App Management
+
+- Install Progressive Web Apps (Jellyfin, Twitch, Vevo, etc.)
+- Custom self-hosted application deployment
+
+## Quick Start
+
+### 1. Start Development Server
 
 ```bash
-# Start the complete development environment
 npm run receiver
-
-# This automatically:
-# 1. Detects your local IP address
-# 2. Updates configuration
-# 3. Starts the function receiver server
 ```
 
-### Access on VIDAA TV
+### 2. Configure DNS
 
-1. Navigate to the **Remote Console** on your TV browser
-2. Use **Function Explorer** for security analysis
-3. Use **Function Explorer** to extract TV APIs
-4. Install custom apps through the installation interface
+Point `vidaahub.com` to your laptop IP via DNS server or DNS spoofing.
 
-## 📋 Features
+### 3. Access on TV
 
-### 🔍 Filesystem Analysis
+Open `https://vidaahub.com/` in TV browser - function scanning starts automatically.
 
-- **Root Discovery:** `/`, `/system`, `/data`, `/storage` exploration
-- **Directory Traversal:** Recursive tree building with depth control
-- **File Access:** Read system files and configuration data
-- **Mount Point Detection:** Identify all available filesystems
+### 4. Control from Laptop
 
-### 🔧 API Research
+Open `https://vidaahub.com/` on laptop - execute functions and run custom JavaScript.
 
-- **Function Extraction:** Complete VIDAA API surface discovery
-- **Source Analysis:** Extract function implementations via toString()
-- **TypeScript Generation:** Auto-generate type definitions
-- **Cross-Platform Transfer:** TV-to-development-machine bridge
-
-### 📱 App Management
-
-- **Custom Installation:** Deploy PWAs and custom applications
-- **DNS Integration:** Network-based API enablement
-- **Self-hosted Deployment:** Complete local development setup
-
-## 🏗️ Architecture
+## Architecture
 
 ```
-VIDAA TV                    Development Machine
-├── Directory Explorer  →   ├── Function Receiver Server
-├── Function Analyzer   →   ├── TypeScript Definitions
-└── Custom App Installer    └── Development Environment
+TV (Scanner)              Development Server          Laptop (Controller)
+├── Discover Functions →  ├── Command Queue      ←    ├── Execute Functions
+├── Poll for Commands  ←  ├── Result Storage     →    ├── Custom JS Editor
+└── Send Results       →  └── Function Registry       └── Command History
 ```
 
-## ⚠️ Security & Disclaimer
+## Key Capabilities
 
-- **Experimental Tool:** This is a research and development toolkit
-- **Use Responsibly:** Only analyze your own devices
-- **No Official Support:** Not endorsed by VidaaOS or Hisense
-- **Self-hosting Recommended:** Safest approach for production use
+### Custom JavaScript Execution
 
-## 📖 Documentation
+- Full JavaScript environment on TV
+- Automatic function wrapping with call templates
+- Smart parameter placeholders (callbacks, paths, etc.)
+
+### Function Exploration
+
+- Source code inspection via toString()
+- Parameter signature detection
+- Native vs. implemented function identification
+- Export as TypeScript definitions
+
+### Command History
+
+- LocalStorage persistence across sessions
+- Expandable results for long output
+- Custom code snippet display
+- Individual item deletion
+
+## API Endpoints
+
+- `POST /api/functions` - Upload function list
+- `GET /api/functions` - Retrieve functions
+- `POST /api/remote-command` - Queue command
+- `GET /api/remote-command` - Poll for commands
+- `POST /api/execute-response` - Submit result
+- `GET /api/execute-response/:id` - Retrieve result
+
+## Development
+
+### Project Structure
+
+```
+vidaa-edge/
+├── dev-server.js              # Express API server
+├── src/
+│   ├── app/
+│   │   ├── components/
+│   │   │   ├── controller-console/  # Remote controller UI
+│   │   │   └── tv-scanner/          # TV function scanner
+│   │   ├── services/
+│   │   │   └── tv-communication.service.ts  # HTTP API client
+│   │   └── pages/
+│   │       ├── documentation/       # User documentation
+│   │       └── start/              # App installation
+│   └── environments/               # Config files
+└── public/                        # Generated function files
+```
+
+### Build Commands
+
+```bash
+npm run dev          # Start development server
+npm run receiver     # Start API server + dev server
+npm run build        # Production build
+```
+
+## Security Considerations
+
+- **Local Network Only:** Designed for development on trusted networks
+- **HTTPS Required:** TV browsers require secure connection
+- **Self-signed Certs:** Included for HTTPS support
+- **Custom Code Execution:** Allows arbitrary JavaScript on TV
+- **File System Access:** Can read files via `Hisense_FileRead`
+
+## Documentation
 
 For complete setup guides and API references:
 
 - **Hosted Documentation:** [vidaa.flummi.ch](https://vidaa.flummi.ch/documentation)
 - **BananaMafia Research:** [Original exploit analysis](https://bananamafia.dev/post/hisensehax/)
 
+## TODO / Known Issues
+
+- **App Installation:** Some TVs missing required functions that are called inside injected functions - needs investigation
+  - Understand `Hisense_installApp_V2` implementation and differences
+  - Investigate which TVs support which install methods
+- **File System Explorer:** Automatic scanning from known paths to discover mounts and directory structure
+- **Phoenix Services:** Understand `phoenix://service/*` architecture
+  - Service discovery and available endpoints
+  - Message protocol and communication patterns
+- **Debug Access:** Enable UART/debug mode for deeper system access
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+This is an experimental development toolkit. Use at your own risk. Not endorsed by VidaaOS, Hisense, or any TV manufacturer. Only test on devices you own."

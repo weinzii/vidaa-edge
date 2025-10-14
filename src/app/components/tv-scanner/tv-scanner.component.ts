@@ -149,12 +149,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       );
 
       this.tvFunctionService.receiveFunctions(functionData).subscribe({
-        next: (response: unknown) => {
-          const typedResponse = response as { success: boolean; count: number };
-          this.appendTvStatus(
-            `📤 Server Response: ${JSON.stringify(typedResponse)}`,
-            'info'
-          );
+        next: () => {
           this.appendTvStatus(
             `✅ Functions loaded! ${this.scannedFunctions.length} functions are now available for remote execution. Ready for development integration.`,
             'success'

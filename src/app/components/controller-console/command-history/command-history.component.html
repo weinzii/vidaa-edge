@@ -12,7 +12,7 @@
       ⬆️ Top
     </button>
   </div>
-  
+
   <div class="space-y-3">
     <div
       *ngFor="let command of commandHistory.slice().reverse(); let i = index"
@@ -42,9 +42,7 @@
               class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
               title="Show/Hide Code"
             >
-              {{
-                isHistoryExpanded(commandHistory.length - 1 - i) ? '▼' : '▶'
-              }}
+              {{ isHistoryExpanded(commandHistory.length - 1 - i) ? '▼' : '▶' }}
               Show Code
             </button>
           </div>
@@ -73,8 +71,7 @@
       <!-- Custom Code Display (Expandable) -->
       <div
         *ngIf="
-          command.customCode &&
-          isHistoryExpanded(commandHistory.length - 1 - i)
+          command.customCode && isHistoryExpanded(commandHistory.length - 1 - i)
         "
         class="mb-2"
       >
@@ -93,13 +90,21 @@
             (click)="onResultToggle(commandHistory.length - 1 - i)"
             class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
           >
-            {{ isHistoryResultExpanded(commandHistory.length - 1 - i) ? '▼ Collapse' : '▶ Expand' }}
+            {{
+              isHistoryResultExpanded(commandHistory.length - 1 - i)
+                ? '▼ Collapse'
+                : '▶ Expand'
+            }}
           </button>
         </div>
         <pre
           class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 overflow-y-auto"
-          [class.max-h-20]="!isHistoryResultExpanded(commandHistory.length - 1 - i)"
-          [class.max-h-96]="isHistoryResultExpanded(commandHistory.length - 1 - i)"
+          [class.max-h-20]="
+            !isHistoryResultExpanded(commandHistory.length - 1 - i)
+          "
+          [class.max-h-96]="
+            isHistoryResultExpanded(commandHistory.length - 1 - i)
+          "
           >{{ formatResult(command.result) }}</pre
         >
       </div>

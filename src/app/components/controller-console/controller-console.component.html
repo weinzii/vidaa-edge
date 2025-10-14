@@ -5,7 +5,7 @@
     <h1 class="text-orange-500 text-3xl font-bold mb-1">
       💻 Remote Function Controller
     </h1>
-    <!-- Only show connection status when functions are available (not during initial setup) -->
+    <!-- Only show connection status when functions are available -->
     <div class="flex justify-center" *ngIf="availableFunctions.length > 0">
       <div
         class="flex items-center gap-3 bg-customGray-light px-4 py-2 rounded-lg border border-purple-900"
@@ -112,301 +112,77 @@
     </div>
   </div>
 
-  <!-- Function Library Browser (only when functions are available) -->
-  <div
-    class="bg-customGray-light rounded-lg p-6 mb-6 border border-purple-900"
+  <!-- Function Library Component -->
+  <app-function-library
     *ngIf="availableFunctions.length > 0"
-  >
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-orange-500">📚 Function Library</h2>
-      <div class="flex gap-3">
-        <input
-          type="text"
-          [(ngModel)]="functionFilter"
-          (input)="filterFunctions()"
-          placeholder="🔍 Search functions..."
-          class="bg-customGray text-white px-4 py-2 rounded-lg border border-purple-900 focus:border-orange-500 focus:outline-none"
-          aria-label="Search functions"
-        />
-        <button
-          (click)="saveFunctionsToDisk()"
-          class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-          aria-label="Save functions to disk"
-          [disabled]="availableFunctions.length === 0"
-        >
-          💾 Save to Disk
-        </button>
-        <button
-          (click)="openCustomCodeModal()"
-          class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-          aria-label="Open custom code editor"
-        >
-          📝 Custom Code
-        </button>
-      </div>
-    </div>
-
-    <!-- Horizontal Categories -->
-    <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
-      <button
-        *ngFor="let category of categories"
-        class="px-4 py-2 rounded-lg transition-colors whitespace-nowrap text-sm"
-        [class.bg-orange-600]="selectedCategory === category.key"
-        [class.text-white]="selectedCategory === category.key"
-        [class.bg-customGray]="selectedCategory !== category.key"
-        [class.text-gray-300]="selectedCategory !== category.key"
-        [class.hover:bg-orange-500]="selectedCategory !== category.key"
-        (click)="selectCategory(category.key)"
-      >
-        {{ category.icon }} {{ category.name }} ({{
-          getCategoryCount(category.key)
-        }})
-      </button>
-    </div>
-
-    <!-- Compact Function Grid - SMALLER! -->
-    <div
-      class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1"
-    >
-      <div
-        *ngFor="let func of filteredFunctions"
-        [ngClass]="{
-          'bg-customGray rounded-lg p-2 cursor-pointer transition-all hover:bg-purple-900/30 relative border border-purple-900': true,
-          'ring-2 ring-orange-500 ring-offset-2 ring-offset-customGray-light bg-orange-900/30':
-            selectedFunction?.name === func.name
-        }"
-        (click)="selectFunction(func)"
-        tabindex="0"
-        role="button"
-        (keyup.enter)="selectFunction(func)"
-        (keyup.space)="selectFunction(func)"
-      >
-        <div class="flex items-center justify-between">
-          <span class="text-white text-xs font-medium truncate">{{
-            func.name
-          }}</span>
-          <div class="flex items-center gap-1">
-            <button
-              (click)="copyFunctionToCustomCode(func); $event.stopPropagation()"
-              class="text-xs text-orange-400 hover:text-orange-300 transition-colors"
-              title="Copy to Custom Code"
-            >
-              📋
-            </button>
-            <span
-              class="text-xs bg-purple-900 text-gray-300 px-1 py-0.5 rounded flex-shrink-0"
-              >{{ getFunctionType(func.name) }}</span
-            >
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    [availableFunctions]="availableFunctions"
+    [filteredFunctions]="filteredFunctions"
+    [functionFilter]="functionFilter"
+    [selectedCategory]="selectedCategory"
+    [expandedSources]="expandedSources"
+    (functionFilterChange)="onFunctionFilterChange($event)"
+    (categorySelected)="onCategorySelected($event)"
+    (functionSelected)="onFunctionSelected($event)"
+    (sourceExpansionToggled)="onSourceExpansionToggled($event)"
+    (saveToDisk)="onSaveToDisk()"
+    (customCodeOpen)="onCustomCodeOpen()"
+    (copyToCustomCode)="onCopyToCustomCode($event)"
+  ></app-function-library>
 
   <!-- Function Execution Modal -->
   <app-code-modal
     [isOpen]="showExecutionModal"
     [title]="'Execute Function: ' + (selectedFunction?.name || '')"
-    [showExecuteButton]="true"
-    (closeModal)="closeExecutionModal()"
-    (executeCode)="executeFunction()"
+    [showExecuteButton]="false"
+    (closeModal)="onCloseExecutionModal()"
   >
-    <div class="space-y-4" *ngIf="selectedFunction">
-      <!-- Source Code Display -->
-      <div *ngIf="selectedFunction.sourceCode">
-        <div class="block text-sm font-semibold text-gray-300 mb-2">
-          Source Code:
-        </div>
-        <pre
-          class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
-          >{{ selectedFunction.sourceCode }}</pre
-        >
-      </div>
-
-      <!-- Parameters -->
-      <div
-        *ngIf="
-          selectedFunction.parameters && selectedFunction.parameters.length > 0
-        "
-      >
-        <div class="block text-sm font-semibold text-gray-300 mb-2">
-          Parameters:
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div *ngFor="let param of selectedFunction.parameters; let i = index">
-            <label
-              [for]="'modal-param-' + i"
-              class="block mb-1 text-sm text-gray-400"
-              >{{ param }}</label
-            >
-            <input
-              [id]="'modal-param-' + i"
-              type="text"
-              [(ngModel)]="parameterValues[i]"
-              class="w-full p-2 bg-customGray border border-purple-900 rounded text-gray-200 text-sm focus:outline-none focus:border-orange-500"
-              [placeholder]="getParameterHint(param)"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- No Parameters Message -->
-      <div
-        *ngIf="
-          !selectedFunction.parameters ||
-          selectedFunction.parameters.length === 0
-        "
-        class="text-gray-400 text-sm italic"
-      >
-        This function takes no parameters.
-      </div>
-
-      <!-- Result Display -->
-      <div *ngIf="executionResult !== null" class="mt-4">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-sm font-semibold text-orange-400">📊 Result:</div>
-          <button
-            (click)="copyResultToClipboard()"
-            class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
-            title="Copy to clipboard"
-          >
-            📋 Copy
-          </button>
-        </div>
-        <pre
-          class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
-          >{{ formatResult(executionResult) }}</pre
-        >
-      </div>
-
-      <!-- Executing Indicator -->
-      <div *ngIf="isExecuting" class="text-center text-orange-400">
-        ⏳ Executing function on TV...
-      </div>
-    </div>
+    <app-function-execution-modal
+      [isOpen]="showExecutionModal"
+      [selectedFunction]="selectedFunction"
+      [parameterValues]="parameterValues"
+      [executionResult]="executionResult"
+      [isExecuting]="isExecuting"
+      [isExecutionResultExpanded]="isExecutionResultExpanded"
+      (closeModal)="onCloseExecutionModal()"
+      (executeFunction)="onExecuteFunction()"
+      (clearParameters)="onClearParameters()"
+      (copyResult)="onCopyExecutionResult()"
+      (parameterChanged)="onParameterChanged($event)"
+      (resultExpansionToggled)="onExecutionResultExpansionToggled()"
+    ></app-function-execution-modal>
   </app-code-modal>
-
-  <!-- Command History -->
-  <div
-    class="bg-customGray-light rounded-lg p-6 mt-6 border border-purple-900"
-    *ngIf="commandHistory.length > 0"
-  >
-    <h3 class="text-xl font-bold text-orange-500 mb-4">📜 Command History</h3>
-    <div class="space-y-3">
-      <div
-        *ngFor="let command of commandHistory.slice().reverse(); let i = index"
-        class="bg-customGray rounded border border-purple-900 p-3"
-      >
-        <div class="flex justify-between items-start mb-2">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-baseline gap-2 flex-wrap">
-              <span class="font-mono font-bold text-orange-400 text-sm">{{
-                command.functionName
-              }}</span>
-              <!-- Show Parameters for regular functions - max 25% width -->
-              <span
-                *ngIf="
-                  command.parameters &&
-                  command.parameters.length > 0 &&
-                  !command.customCode
-                "
-                class="text-gray-400 text-xs truncate max-w-[25%]"
-                [title]="'(' + command.parameters.join(', ') + ')'"
-                >({{ command.parameters.join(', ') }})</span
-              >
-              <!-- Expandable Custom Code -->
-              <button
-                *ngIf="command.customCode"
-                (click)="toggleHistoryExpansion(commandHistory.length - 1 - i)"
-                class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
-                title="Show/Hide Code"
-              >
-                {{
-                  isHistoryExpanded(commandHistory.length - 1 - i) ? '▼' : '▶'
-                }}
-                Show Code
-              </button>
-            </div>
-          </div>
-          <div class="flex items-center gap-3 ml-4 flex-shrink-0">
-            <span class="text-gray-400 text-xs">{{
-              formatTime(command.timestamp)
-            }}</span>
-            <span
-              class="text-sm font-bold"
-              [class.text-green-400]="command.success"
-              [class.text-red-400]="!command.success"
-            >
-              {{ command.success ? '✅' : '❌' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Custom Code Display (Expandable) -->
-        <div
-          *ngIf="
-            command.customCode &&
-            isHistoryExpanded(commandHistory.length - 1 - i)
-          "
-          class="mb-2"
-        >
-          <pre
-            class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
-            >{{ command.customCode }}</pre
-          >
-        </div>
-
-        <!-- Show Result -->
-        <div *ngIf="command.result !== undefined && command.result !== null">
-          <pre
-            class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 max-h-20 overflow-y-auto"
-            >{{ formatResult(command.result) }}</pre
-          >
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Custom Code Modal -->
   <app-code-modal
     [isOpen]="showCustomCodeModal"
     [title]="'Custom JavaScript Code'"
-    [showExecuteButton]="true"
-    (closeModal)="closeCustomCodeModal()"
-    (executeCode)="executeCustomCode()"
+    [showExecuteButton]="false"
+    (closeModal)="onCloseCustomCodeModal()"
   >
-    <div class="space-y-4">
-      <div>
-        <div class="block text-sm font-semibold text-gray-300 mb-2">
-          JavaScript Code:
-        </div>
-        <textarea
-          [(ngModel)]="customJsCode"
-          class="w-full h-64 p-3 bg-customGray border border-purple-900 rounded text-gray-200 font-mono text-sm focus:outline-none focus:border-orange-500"
-          placeholder="// Enter custom JavaScript code to execute on TV...&#10;// Example:&#10;const result = Hisense_GetBrand();&#10;console.log(result);&#10;return result;"
-        ></textarea>
-      </div>
-
-      <div *ngIf="customCodeResult !== null" class="mt-4">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-sm font-semibold text-orange-400">📊 Result:</div>
-          <button
-            (click)="copyCustomCodeResultToClipboard()"
-            class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
-            title="Copy to clipboard"
-          >
-            📋 Copy
-          </button>
-        </div>
-        <pre
-          class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
-          >{{ formatResult(customCodeResult) }}</pre
-        >
-      </div>
-
-      <div *ngIf="isExecutingCustomCode" class="text-center text-orange-400">
-        ⏳ Executing custom code on TV...
-      </div>
-    </div>
+    <app-custom-code-modal
+      [isOpen]="showCustomCodeModal"
+      [customJsCode]="customJsCode"
+      [customCodeResult]="customCodeResult"
+      [isExecutingCustomCode]="isExecutingCustomCode"
+      [isCustomCodeExpanded]="isCustomCodeExpanded"
+      [isCustomCodeResultExpanded]="isCustomCodeResultExpanded"
+      (closeModal)="onCloseCustomCodeModal()"
+      (executeCode)="onExecuteCustomCode()"
+      (codeChanged)="onCustomCodeChanged($event)"
+      (copyResult)="onCopyCustomCodeResult()"
+      (codeExpansionToggled)="onCustomCodeExpansionToggled()"
+      (resultExpansionToggled)="onCustomCodeResultExpansionToggled()"
+    ></app-custom-code-modal>
   </app-code-modal>
+
+  <!-- Command History Component -->
+  <app-command-history
+    [commandHistory]="commandHistory"
+    [expandedHistoryItems]="expandedHistoryItems"
+    [expandedHistoryResults]="expandedHistoryResults"
+    (historyExpansionToggled)="onHistoryExpansionToggled($event)"
+    (historyResultExpansionToggled)="onHistoryResultExpansionToggled($event)"
+    (historyItemDeleted)="onHistoryItemDeleted($event)"
+    (scrollToTop)="onScrollToTop()"
+  ></app-command-history>
 </div>

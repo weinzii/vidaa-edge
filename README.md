@@ -9,8 +9,32 @@ A development toolkit for VidaaOS-based TVs enabling remote function exploration
 **Credits:**
 
 - Original project by [weinzii](https://github.com/weinzii/vidaa-edge)
-- This fork focuses on JavaScript execution and function exploration improvements
 - Exploit research by [BananaMafia](https://bananamafia.dev/post/hisensehax/)
+
+---
+
+## About This Fork
+
+This fork extends the original VidaaEdge project with enhanced JavaScript execution and exploration capabilities:
+
+- **Remote Command Execution:** Control TV functions from your laptop with real-time feedback
+- **Persistent History:** Command history stored across sessions with expandable results
+- **Source Code Explorer:** Extract and inspect actual function implementations
+- **Enhanced Custom Code Editor:** Full-screen editor with smart parameter templates
+
+### Known Limitations & TODOs
+
+- **App Installation:**
+  - Some TVs missing required functions, somehow not injected
+  - Investigate `Hisense_installApp_V2` implementation differences
+  - Test compatibility across TV models
+- **File System Explorer:** Auto-scan from known paths to discover mounts/directory/files structure
+- **Phoenix Services:** Understand `phoenix://service/*` architecture and endpoints
+- **Debug Access:** Enable UART/debug mode for deeper system access
+
+**Thanks to weinzii for the excellent foundation!**
+
+---
 
 ## Features
 
@@ -136,17 +160,6 @@ For complete setup guides and API references:
 
 - **Hosted Documentation:** [vidaa.flummi.ch](https://vidaa.flummi.ch/documentation)
 - **BananaMafia Research:** [Original exploit analysis](https://bananamafia.dev/post/hisensehax/)
-
-## TODO / Known Issues
-
-- **App Installation:** Some TVs missing required functions that are called inside injected functions - needs investigation
-  - Understand `Hisense_installApp_V2` implementation and differences
-  - Investigate which TVs support which install methods
-- **File System Explorer:** Automatic scanning from known paths to discover mounts and directory structure
-- **Phoenix Services:** Understand `phoenix://service/*` architecture
-  - Service discovery and available endpoints
-  - Message protocol and communication patterns
-- **Debug Access:** Enable UART/debug mode for deeper system access
 
 ## License
 

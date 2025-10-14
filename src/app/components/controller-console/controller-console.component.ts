@@ -293,21 +293,62 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
           </div>
 
           <!-- Result Display -->
-          <div *ngIf="executionResult !== null" class="mt-4">
+          <div *ngIf="executionResult !== null" class="mt-4 relative">
             <div class="flex items-center justify-between mb-2">
               <div class="text-sm font-semibold text-orange-400">
                 📊 Result:
               </div>
-              <button
-                (click)="copyResultToClipboard()"
-                class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
-                title="Copy to clipboard"
-              >
-                📋 Copy
-              </button>
+              <div class="flex gap-2">
+                <button
+                  *ngIf="shouldShowExpandButton(executionResult)"
+                  (click)="toggleExecutionResultExpanded()"
+                  class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+                  title="Expand/Collapse"
+                >
+                  <svg
+                    *ngIf="!isExecutionResultExpanded"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                    />
+                  </svg>
+                  <svg
+                    *ngIf="isExecutionResultExpanded"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25"
+                    />
+                  </svg>
+                </button>
+                <button
+                  (click)="copyResultToClipboard()"
+                  class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+                  title="Copy to clipboard"
+                >
+                  📋 Copy
+                </button>
+              </div>
             </div>
             <pre
-              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
+              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-y-auto text-gray-300"
+              [class.max-h-48]="!isExecutionResultExpanded"
+              [class.max-h-none]="isExecutionResultExpanded"
               >{{ formatResult(executionResult) }}</pre
             >
           </div>
@@ -381,6 +422,26 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
                 >
                   {{ command.success ? '✅' : '❌' }}
                 </span>
+                <button
+                  (click)="deleteHistoryItem(i)"
+                  class="text-red-400 hover:text-red-300 transition-colors"
+                  title="Delete"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -398,17 +459,87 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
               >
             </div>
 
-            <!-- Show Result -->
+            <!-- Result Display (Expandable) -->
             <div
               *ngIf="command.result !== undefined && command.result !== null"
+              class="relative"
             >
+              <button
+                *ngIf="shouldShowExpandButton(command.result)"
+                (click)="
+                  toggleHistoryResultExpansion(commandHistory.length - 1 - i)
+                "
+                class="absolute top-2 right-2 text-xs text-gray-400 hover:text-orange-400 transition-colors z-10 bg-customGray px-2 py-1 rounded"
+                title="Expand/Collapse"
+              >
+                <svg
+                  *ngIf="
+                    !isHistoryResultExpanded(commandHistory.length - 1 - i)
+                  "
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-4 h-4"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                  />
+                </svg>
+                <svg
+                  *ngIf="isHistoryResultExpanded(commandHistory.length - 1 - i)"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-4 h-4"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25"
+                  />
+                </svg>
+              </button>
               <pre
-                class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 max-h-20 overflow-y-auto"
+                class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 overflow-y-auto"
+                [class.max-h-20]="
+                  !isHistoryResultExpanded(commandHistory.length - 1 - i)
+                "
+                [class.max-h-none]="
+                  isHistoryResultExpanded(commandHistory.length - 1 - i)
+                "
                 >{{ formatResult(command.result) }}</pre
               >
             </div>
           </div>
         </div>
+
+        <!-- Scroll to Top Button (fixed bottom right inside history) -->
+        <button
+          (click)="scrollToTop()"
+          class="fixed bottom-6 right-6 bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-full shadow-lg transition-all z-50"
+          title="Scroll to Top"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4.5 15.75l7.5-7.5 7.5 7.5"
+            />
+          </svg>
+        </button>
       </div>
 
       <!-- Custom Code Modal -->
@@ -420,13 +551,53 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
         (executeCode)="executeCustomCode()"
       >
         <div class="space-y-4">
-          <div>
-            <div class="block text-sm font-semibold text-gray-300 mb-2">
-              JavaScript Code:
+          <div class="relative">
+            <div class="flex items-center justify-between mb-2">
+              <div class="block text-sm font-semibold text-gray-300">
+                JavaScript Code:
+              </div>
+              <button
+                (click)="toggleCustomCodeExpanded()"
+                class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+                title="Expand/Collapse"
+              >
+                <svg
+                  *ngIf="!isCustomCodeExpanded"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-4 h-4"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                  />
+                </svg>
+                <svg
+                  *ngIf="isCustomCodeExpanded"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-4 h-4"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25"
+                  />
+                </svg>
+              </button>
             </div>
             <textarea
               [(ngModel)]="customJsCode"
-              class="w-full h-64 p-3 bg-customGray border border-purple-900 rounded text-gray-200 font-mono text-sm focus:outline-none focus:border-orange-500"
+              class="w-full p-3 bg-customGray border border-purple-900 rounded text-gray-200 font-mono text-sm focus:outline-none focus:border-orange-500"
+              [class.h-64]="!isCustomCodeExpanded"
+              [class.h-[600px]]="isCustomCodeExpanded"
               placeholder="// Enter custom JavaScript code to execute on TV...&#10;// Example:&#10;const result = Hisense_GetBrand();&#10;console.log(result);&#10;return result;"
             ></textarea>
           </div>
@@ -436,16 +607,57 @@ import { CodeModalComponent } from '../code-modal/code-modal.component';
               <div class="text-sm font-semibold text-orange-400">
                 📊 Result:
               </div>
-              <button
-                (click)="copyCustomCodeResultToClipboard()"
-                class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
-                title="Copy to clipboard"
-              >
-                📋 Copy
-              </button>
+              <div class="flex gap-2">
+                <button
+                  *ngIf="shouldShowExpandButton(customCodeResult)"
+                  (click)="toggleCustomCodeResultExpanded()"
+                  class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+                  title="Expand/Collapse"
+                >
+                  <svg
+                    *ngIf="!isCustomCodeResultExpanded"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                    />
+                  </svg>
+                  <svg
+                    *ngIf="isCustomCodeResultExpanded"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-4 h-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25"
+                    />
+                  </svg>
+                </button>
+                <button
+                  (click)="copyCustomCodeResultToClipboard()"
+                  class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+                  title="Copy to clipboard"
+                >
+                  📋 Copy
+                </button>
+              </div>
             </div>
             <pre
-              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs max-h-48 overflow-y-auto text-gray-300"
+              class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-y-auto text-gray-300"
+              [class.max-h-48]="!isCustomCodeResultExpanded"
+              [class.max-h-none]="isCustomCodeResultExpanded"
               >{{ formatResult(customCodeResult) }}</pre
             >
           </div>
@@ -483,7 +695,8 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     success: boolean;
     result?: unknown;
   }> = [];
-  expandedHistoryItems: Set<number> = new Set(); // Track which history items are expanded
+  expandedHistoryItems: Set<number> = new Set();
+  expandedHistoryResults: Set<number> = new Set();
 
   // Connection Properties
   tvConnection: TVConnectionInfo = {
@@ -511,6 +724,9 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   customJsCode = '';
   customCodeResult: unknown = null;
   isExecutingCustomCode = false;
+  isExecutionResultExpanded = false;
+  isCustomCodeResultExpanded = false;
+  isCustomCodeExpanded = false;
 
   private subscriptions = new Subscription();
 
@@ -520,6 +736,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.loadCommandHistory();
     this.initLaptopMode();
   }
 
@@ -947,6 +1164,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         success: true,
         result: result,
       });
+      this.saveCommandHistory();
     } catch (error) {
       const errorResult = this.handleExecutionError(error);
 
@@ -966,6 +1184,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         success: false,
         result: errorResult,
       });
+      this.saveCommandHistory();
     } finally {
       // Clear executing flag
       if (isCustomCode) {
@@ -1110,7 +1329,14 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
 
   formatTime(date: Date | null): string {
     if (!date) return 'Never';
-    return date.toLocaleTimeString();
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString();
+    } else {
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
   }
 
   getDeviceBrand(): string {
@@ -1159,6 +1385,36 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     return this.expandedHistoryItems.has(index);
   }
 
+  toggleHistoryResultExpansion(index: number): void {
+    if (this.expandedHistoryResults.has(index)) {
+      this.expandedHistoryResults.delete(index);
+    } else {
+      this.expandedHistoryResults.add(index);
+    }
+  }
+
+  isHistoryResultExpanded(index: number): boolean {
+    return this.expandedHistoryResults.has(index);
+  }
+
+  shouldShowExpandButton(result: unknown): boolean {
+    const formatted = this.formatResult(result);
+    const lines = formatted.split('\n');
+    return lines.length > 5;
+  }
+
+  toggleExecutionResultExpanded(): void {
+    this.isExecutionResultExpanded = !this.isExecutionResultExpanded;
+  }
+
+  toggleCustomCodeResultExpanded(): void {
+    this.isCustomCodeResultExpanded = !this.isCustomCodeResultExpanded;
+  }
+
+  toggleCustomCodeExpanded(): void {
+    this.isCustomCodeExpanded = !this.isCustomCodeExpanded;
+  }
+
   // CUSTOM CODE METHODS
   openCustomCodeModal(): void {
     this.showCustomCodeModal = true;
@@ -1175,25 +1431,86 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   }
 
   copyFunctionToCustomCode(func: FunctionData): void {
-    // Build a proper function call with the function's code
     const functionName = func.name;
     const hasParams = func.parameters && func.parameters.length > 0;
 
-    if (hasParams && func.parameters) {
-      // Create function call template with parameter hints
-      const params = func.parameters
-        .map((param) => {
-          const hint = this.getDefaultParameterValue(param);
-          return hint ? `"${hint}"` : `/* ${param} */`;
-        })
-        .join(', ');
+    if (func.sourceCode) {
+      const params =
+        hasParams && func.parameters
+          ? func.parameters
+              .map((param) => {
+                const hint = this.getDefaultParameterValue(param);
+                return hint ? `"${hint}"` : `/* ${param} */`;
+              })
+              .join(', ')
+          : '';
 
-      this.customJsCode = `// Execute ${functionName}\nconst result = ${functionName}(${params});\nconsole.log(result);\nreturn result;`;
+      const callTemplate = hasParams
+        ? `// Adjust parameters as needed, then execute\nconst result = ${functionName}(${params});\nconsole.log(result);\nreturn result;`
+        : `// Execute function\nconst result = ${functionName}();\nconsole.log(result);\nreturn result;`;
+
+      this.customJsCode = `const ${functionName} = ${func.sourceCode}\n\n${callTemplate}`;
     } else {
-      // No parameters - simple function call
-      this.customJsCode = `// Execute ${functionName}\nconst result = ${functionName}();\nconsole.log(result);\nreturn result;`;
+      if (hasParams && func.parameters) {
+        const params = func.parameters
+          .map((param) => {
+            const hint = this.getDefaultParameterValue(param);
+            return hint ? `"${hint}"` : `/* ${param} */`;
+          })
+          .join(', ');
+
+        this.customJsCode = `// Execute ${functionName}\nconst result = ${functionName}(${params});\nconsole.log(result);\nreturn result;`;
+      } else {
+        this.customJsCode = `// Execute ${functionName}\nconst result = ${functionName}();\nconsole.log(result);\nreturn result;`;
+      }
     }
 
     this.showCustomCodeModal = true;
+  }
+
+  scrollToTop(): void {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  private loadCommandHistory(): void {
+    try {
+      const stored = localStorage.getItem('vidaa-command-history');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        this.commandHistory = parsed.map(
+          (cmd: {
+            functionName: string;
+            parameters?: unknown[];
+            customCode?: string;
+            timestamp: string;
+            success: boolean;
+            result?: unknown;
+          }) => ({
+            ...cmd,
+            timestamp: new Date(cmd.timestamp),
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Failed to load command history:', error);
+      this.commandHistory = [];
+    }
+  }
+
+  private saveCommandHistory(): void {
+    try {
+      localStorage.setItem(
+        'vidaa-command-history',
+        JSON.stringify(this.commandHistory)
+      );
+    } catch (error) {
+      console.error('Failed to save command history:', error);
+    }
+  }
+
+  deleteHistoryItem(index: number): void {
+    const reversedIndex = this.commandHistory.length - 1 - index;
+    this.commandHistory.splice(reversedIndex, 1);
+    this.saveCommandHistory();
   }
 }

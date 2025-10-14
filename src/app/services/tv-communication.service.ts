@@ -67,7 +67,8 @@ export interface RemoteCommandCheck {
   providedIn: 'root',
 })
 export class TvCommunicationService {
-  private readonly COMMAND_TIMEOUT = 10000; // 10 seconds
+  private readonly COMMAND_TIMEOUT = 10000;
+  private readonly CUSTOM_CODE_TIMEOUT = 30000;
 
   // State Management
   private tvConnectionSubject = new BehaviorSubject<TVConnectionInfo>({
@@ -279,15 +280,16 @@ export class TvCommunicationService {
     functionName: string,
     parameters: Record<string, unknown> | unknown[] = {}
   ): Observable<unknown> {
-    // Send only function name and parameters to TV
-    // The TV will execute the function from its own window object
+    const commandId = Date.now().toString();
+
     return this.http
       .post<CommandResponse>('/api/remote-command', {
+        id: commandId,
         function: functionName,
         parameters: parameters,
       })
       .pipe(
-        timeout(30000), // 30 seconds timeout for initial command queue submission
+        timeout(30000),
         switchMap((response: CommandResponse) =>
           this.pollForResult(response.commandId)
         ),
@@ -297,14 +299,23 @@ export class TvCommunicationService {
       );
   }
 
-  private pollForResult(commandId: string): Observable<unknown> {
+  private pollForResult(
+    commandId: string,
+    timeoutMs?: number
+  ): Observable<unknown> {
+    const timeoutDuration = timeoutMs || this.COMMAND_TIMEOUT;
+
     return new Observable((observer) => {
       const timeout = setTimeout(() => {
         clearInterval(pollInterval);
         observer.error(
-          new Error('Command timeout - no response received within 10 seconds')
+          new Error(
+            `Command timeout - no response received within ${
+              timeoutDuration / 1000
+            } seconds`
+          )
         );
-      }, this.COMMAND_TIMEOUT);
+      }, timeoutDuration);
 
       const pollInterval = setInterval(() => {
         this.http
@@ -312,7 +323,6 @@ export class TvCommunicationService {
           .subscribe({
             next: (response: CommandResponse) => {
               if (response.waiting) {
-                // Still waiting for result
                 return;
               }
 
@@ -332,7 +342,7 @@ export class TvCommunicationService {
               observer.error(error);
             },
           });
-      }, 500); // Poll every 500ms
+      }, 500);
     });
   }
 
@@ -430,23 +440,24 @@ export class TvCommunicationService {
   public executeCustomCode(jsCode: string): Observable<unknown> {
     const commandId = Date.now().toString();
 
-    // Create custom code command (only send required fields for queueing)
     const customCommand = {
       id: commandId,
       function: '__CUSTOM_CODE__',
-      parameters: [jsCode], // Pass JS code as parameter
+      parameters: [jsCode],
       timestamp: new Date().toISOString(),
     };
 
-    // Send command to server
     return this.http.post('/api/remote-command', customCommand).pipe(
-      switchMap(() => this.pollForResult(commandId)),
-      timeout(this.COMMAND_TIMEOUT),
+      switchMap(() => this.pollForResult(commandId, this.CUSTOM_CODE_TIMEOUT)),
       catchError((error) => {
-        // Pass through the original error object (like executeFunction does)
-        // This preserves HTTP status codes and structured error responses
         throw error;
       })
     );
+  }
+
+  public sendKeepAlive(): Observable<unknown> {
+    return this.http.post('/api/keepalive', {
+      timestamp: new Date().toISOString(),
+    });
   }
 }

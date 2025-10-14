@@ -5,7 +5,8 @@ import {
   RemoteCommandCheck,
   RemoteCommand,
 } from '../../services/tv-communication.service';
-import { Subscription, interval } from 'rxjs';
+import { Subscription, interval, timer } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 
 interface HisenseFunction {
   name: string;
@@ -316,6 +317,27 @@ export class TvScannerComponent implements OnInit, OnDestroy {
 
     // Enable remote command listening
     this.enableRemoteCommandListener();
+
+    // Start keep-alive to maintain connection status
+    this.startKeepAlive();
+  }
+
+  private startKeepAlive(): void {
+    // Start immediately (0ms), then repeat every 2 minutes (120000ms)
+    const keepAlive$ = timer(0, 120000).pipe(
+      switchMap(() => this.tvCommunicationService.sendKeepAlive())
+    );
+
+    this.subscriptions.add(
+      keepAlive$.subscribe({
+        next: () => {
+          console.log('✅ Keep-alive sent');
+        },
+        error: (err) => {
+          console.error('❌ Keep-alive failed:', err);
+        },
+      })
+    );
   }
 
   private async autoScan(): Promise<void> {
@@ -840,7 +862,6 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       const windowObj = window as unknown as Record<string, unknown>;
       let nativeFunc: unknown;
 
-      // Handle custom JavaScript code execution
       if (
         command.function === '__CUSTOM_CODE__' &&
         command.parameters &&
@@ -853,7 +874,6 @@ export class TvScannerComponent implements OnInit, OnDestroy {
             'info'
           );
 
-          // Execute custom JavaScript code using Function constructor
           const customFunction = new Function(jsCode);
           const output = customFunction();
 
@@ -867,15 +887,14 @@ export class TvScannerComponent implements OnInit, OnDestroy {
         } catch (execError) {
           const execErrorMessage =
             execError instanceof Error ? execError.message : String(execError);
-          throw new Error(`Custom code execution failed: ${execErrorMessage}`);
-        }
-        // Send result and return early
-        this.sendResultBackToPC(command.id, result);
-        return;
-      }
+          result.error = `Custom code execution failed: ${execErrorMessage}`;
 
-      // Handle nested object functions (e.g., "omi_platform.sendPlatformMessage")
-      if (command.function.includes('.')) {
+          this.appendTvStatus(
+            `📡 Remote: ${command.function}() → Error: ${result.error}`,
+            'error'
+          );
+        }
+      } else if (command.function.includes('.')) {
         const parts = command.function.split('.');
         let current: unknown = windowObj;
 
@@ -888,39 +907,68 @@ export class TvScannerComponent implements OnInit, OnDestroy {
         }
 
         nativeFunc = current;
-      } else {
-        // Direct window function (e.g., "Hisense_GetBrand")
-        nativeFunc = windowObj[command.function];
-      }
 
-      if (typeof nativeFunc === 'function') {
-        // Execute function with error isolation
-        try {
-          const output = (nativeFunc as (...args: unknown[]) => unknown)(
-            ...((command.parameters as unknown[]) || [])
+        if (typeof nativeFunc === 'function') {
+          try {
+            const output = (nativeFunc as (...args: unknown[]) => unknown)(
+              ...((command.parameters as unknown[]) || [])
+            );
+
+            result.success = true;
+            result.data = output;
+
+            this.appendTvStatus(
+              `📡 Remote: ${command.function}(${(command.parameters || []).join(
+                ', '
+              )}) → ${JSON.stringify(output)}`,
+              'success'
+            );
+          } catch (execError) {
+            const execErrorMessage =
+              execError instanceof Error
+                ? execError.message
+                : String(execError);
+            throw new Error(`Execution failed: ${execErrorMessage}`);
+          }
+        } else {
+          throw new Error(
+            `Function ${
+              command.function
+            } not found or is not a function (type: ${typeof nativeFunc})`
           );
-
-          result.success = true;
-          result.data = output;
-
-          this.appendTvStatus(
-            `📡 Remote: ${command.function}(${(command.parameters || []).join(
-              ', '
-            )}) → ${JSON.stringify(output)}`,
-            'success'
-          );
-        } catch (execError) {
-          // Function execution failed, but don't let it crash the scanner
-          const execErrorMessage =
-            execError instanceof Error ? execError.message : String(execError);
-          throw new Error(`Execution failed: ${execErrorMessage}`);
         }
       } else {
-        throw new Error(
-          `Function ${
-            command.function
-          } not found or is not a function (type: ${typeof nativeFunc})`
-        );
+        nativeFunc = windowObj[command.function];
+
+        if (typeof nativeFunc === 'function') {
+          try {
+            const output = (nativeFunc as (...args: unknown[]) => unknown)(
+              ...((command.parameters as unknown[]) || [])
+            );
+
+            result.success = true;
+            result.data = output;
+
+            this.appendTvStatus(
+              `📡 Remote: ${command.function}(${(command.parameters || []).join(
+                ', '
+              )}) → ${JSON.stringify(output)}`,
+              'success'
+            );
+          } catch (execError) {
+            const execErrorMessage =
+              execError instanceof Error
+                ? execError.message
+                : String(execError);
+            throw new Error(`Execution failed: ${execErrorMessage}`);
+          }
+        } else {
+          throw new Error(
+            `Function ${
+              command.function
+            } not found or is not a function (type: ${typeof nativeFunc})`
+          );
+        }
       }
     } catch (error) {
       const errorMessage =

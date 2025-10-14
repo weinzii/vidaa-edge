@@ -35,11 +35,15 @@ apiApp.use((req, res, next) => {
 // === UTILITY FUNCTIONS ===
 function updateTvConnection(req) {
   storedFunctions = req.body.functions || [];
+  updateTvConnectionTimestamp(req);
+}
+
+function updateTvConnectionTimestamp(req) {
   tvConnectionInfo = {
     connected: true,
     lastSeen: new Date(),
     ipAddress: req.ip,
-    deviceInfo: req.body.deviceInfo,
+    deviceInfo: tvConnectionInfo.deviceInfo || req.body.deviceInfo,
   };
 }
 
@@ -71,6 +75,15 @@ apiApp.get('/api/functions', (req, res) => {
     deviceInfo: isConnected ? tvConnectionInfo.deviceInfo : null,
     timestamp: tvConnectionInfo.lastSeen,
     connectionInfo: { ...tvConnectionInfo, connected: isConnected },
+  });
+});
+
+apiApp.post('/api/keepalive', (req, res) => {
+  updateTvConnectionTimestamp(req);
+  res.json({
+    success: true,
+    message: 'Keep-alive received',
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -124,6 +137,7 @@ apiApp.post('/api/save-to-public', (req, res) => {
 // === REMOTE COMMAND API ===
 apiApp.post('/api/remote-command', (req, res) => {
   const {
+    id,
     function: functionName,
     parameters,
     sourceCode,
@@ -140,7 +154,7 @@ apiApp.post('/api/remote-command', (req, res) => {
   }
 
   const command = {
-    id: Date.now().toString(),
+    id: id,
     function: functionName,
     parameters: parameters || [],
     sourceCode: sourceCode || '',

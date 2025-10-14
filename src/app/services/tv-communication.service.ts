@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, interval } from 'rxjs';
 import { tap, catchError, switchMap, timeout } from 'rxjs/operators';
+import { ConsoleService } from './console.service';
 
 export interface TVConnectionInfo {
   connected: boolean;
@@ -87,7 +88,10 @@ export class TvCommunicationService {
   public commandQueue$ = this.commandQueueSubject.asObservable();
   public functions$ = this.functionsSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private consoleService: ConsoleService
+  ) {
     this.loadFunctions();
     this.startConnectionMonitoring();
   }
@@ -360,7 +364,7 @@ export class TvCommunicationService {
           observer.complete();
         },
         error: () => {
-          console.log('⚠️ Command API not reachable');
+          this.consoleService.debug('Command API not reachable (polling)', 'TVCommunication');
           observer.next({ hasCommand: false });
           observer.complete();
         },

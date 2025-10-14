@@ -7,6 +7,7 @@ import {
 } from '../../services/tv-communication.service';
 import { Subscription, interval, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import { ConsoleService } from '../../services/console.service';
 
 interface HisenseFunction {
   name: string;
@@ -41,7 +42,10 @@ export class TvScannerComponent implements OnInit, OnDestroy {
 
   private subscriptions = new Subscription();
 
-  constructor(private tvCommunicationService: TvCommunicationService) {}
+  constructor(
+    private tvCommunicationService: TvCommunicationService,
+    private consoleService: ConsoleService
+  ) {}
 
   ngOnInit(): void {
     this.initTvMode();
@@ -192,10 +196,10 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       keepAlive$.subscribe({
         next: () => {
-          console.log('✅ Keep-alive sent');
+          this.consoleService.debug('Keep-alive sent', 'TVScanner');
         },
         error: (err) => {
-          console.error('❌ Keep-alive failed:', err);
+          this.consoleService.error('Keep-alive failed', err, 'TVScanner');
         },
       })
     );
@@ -567,7 +571,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
         ),
       }));
     } catch (error) {
-      console.error('Function scan failed:', error);
+      this.consoleService.error('Function scan failed', error, 'TVScanner');
       this.scannedFunctions = [];
     }
   }
@@ -698,8 +702,8 @@ export class TvScannerComponent implements OnInit, OnDestroy {
             this.executeRemoteCommand(commandData.command);
           }
         },
-        error: (error) => {
-          console.error('Command check failed:', error);
+        error: () => {
+          this.consoleService.debug('Command check polling error (ignored)', 'TVScanner');
           // Ignore polling errors - don't spam the UI
         },
       });
@@ -866,9 +870,9 @@ export class TvScannerComponent implements OnInit, OnDestroy {
           this.appendTvStatus(`✅ Result sent back to PC`, 'success');
         },
         error: (error) => {
-          console.error('Failed to send result:', error);
+          this.consoleService.error('Failed to send result', error, 'TVScanner');
           this.appendTvStatus(
-            `❌ Failed to send result: ${error.message}`,
+            `❌ Failed to send result: ${error instanceof Error ? error.message : String(error)}`,
             'error'
           );
         },

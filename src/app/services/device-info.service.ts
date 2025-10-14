@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
+import { ConsoleService } from './console.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class DeviceInfoService {
+  constructor(private consoleService: ConsoleService) {}
+
   /**
    * Get Firmware Version
    * Retrieves the firmware version of the device.
@@ -14,14 +17,15 @@ export class DeviceInfoService {
   getFirmwareVersion(): string | null {
     try {
       if (typeof Hisense_GetFirmWareVersion === 'undefined') {
-        console.warn('Hisense_GetFirmWareVersion is not available');
+        this.consoleService.warn('Hisense_GetFirmWareVersion is not available', 'DeviceInfo');
         return null;
       }
       return Hisense_GetFirmWareVersion();
     } catch (error) {
-      console.error(
-        'Error: Hisense_GetFirmWareVersion is not defined or failed.',
-        error
+      this.consoleService.error(
+        'Hisense_GetFirmWareVersion is not defined or failed',
+        error,
+        'DeviceInfo'
       );
       return null;
     }
@@ -40,7 +44,7 @@ export class DeviceInfoService {
       }
       return Hisense_GetDeviceID();
     } catch (error) {
-      console.error('Error getting device ID:', error);
+      this.consoleService.error('Error getting device ID', error, 'DeviceInfo');
       return null;
     }
   }
@@ -57,7 +61,7 @@ export class DeviceInfoService {
       }
       return Hisense_GetCountryCode();
     } catch (error) {
-      console.error('Error getting country code:', error);
+      this.consoleService.error('Error getting country code', error, 'DeviceInfo');
       return null;
     }
   }
@@ -75,7 +79,7 @@ export class DeviceInfoService {
       }
       return Hisense_GetBrand();
     } catch (error) {
-      console.error('Error getting TV brand:', error);
+      this.consoleService.error('Error getting TV brand', error, 'DeviceInfo');
       return null;
     }
   }
@@ -93,7 +97,7 @@ export class DeviceInfoService {
       }
       return Hisense_GetModelName();
     } catch (error) {
-      console.error('Error getting TV model name:', error);
+      this.consoleService.error('Error getting TV model name', error, 'DeviceInfo');
       return null;
     }
   }
@@ -110,7 +114,7 @@ export class DeviceInfoService {
       }
       return Hisense_Get4KSupportState();
     } catch (error) {
-      console.error('Error checking 4K support:', error);
+      this.consoleService.error('Error checking 4K support', error, 'DeviceInfo');
       return null;
     }
   }

@@ -1,5 +1,6 @@
 import { NgIf } from '@angular/common';
 import { Component, Input } from '@angular/core';
+import { ConsoleService } from '../../services/console.service';
 
 @Component({
   selector: 'app-copy-to-clipboard',
@@ -12,6 +13,8 @@ export class CopyToClipboardComponent {
   @Input() value = '';
   showTooltip = false;
 
+  constructor(private consoleService: ConsoleService) {}
+
   copyToClipboard() {
     navigator.clipboard.writeText(this.value).then(
       () => {
@@ -21,7 +24,7 @@ export class CopyToClipboardComponent {
         }, 2000);
       },
       (err) => {
-        console.error('Failed to copy: ', err);
+        this.consoleService.error('Failed to copy to clipboard', err, 'CopyToClipboard');
       }
     );
   }

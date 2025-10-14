@@ -12,6 +12,7 @@ import {
 } from '../../services/function-file-generator.service';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { CodeModalComponent } from '../code-modal/code-modal.component';
+import { ConsoleService } from '../../services/console.service';
 
 @Component({
   selector: 'app-controller-console',
@@ -78,7 +79,8 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
 
   constructor(
     private tvCommunicationService: TvCommunicationService,
-    private functionFileGenerator: FunctionFileGeneratorService
+    private functionFileGenerator: FunctionFileGeneratorService,
+    private consoleService: ConsoleService
   ) {}
 
   ngOnInit(): void {
@@ -616,7 +618,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         // Success
       },
       (err) => {
-        console.error('❌ Failed to copy to clipboard:', err);
+        this.consoleService.error('Failed to copy to clipboard', err, 'ControllerConsole');
         // Fallback: Try the old method
         this.fallbackCopyToClipboard(resultText);
       }
@@ -633,7 +635,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     try {
       document.execCommand('copy');
     } catch (err) {
-      console.error('❌ Fallback copy failed:', err);
+      this.consoleService.error('Fallback copy failed', err, 'ControllerConsole');
     }
     document.body.removeChild(textArea);
   }
@@ -650,7 +652,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         // Success
       },
       (err) => {
-        console.error('❌ Failed to copy to clipboard:', err);
+        this.consoleService.error('Failed to copy to clipboard', err, 'ControllerConsole');
         // Fallback: Try the old method
         this.fallbackCopyToClipboard(resultText);
       }
@@ -838,7 +840,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         );
       }
     } catch (error) {
-      console.error('Failed to load command history:', error);
+      this.consoleService.error('Failed to load command history', error, 'ControllerConsole');
       this.commandHistory = [];
     }
   }
@@ -850,7 +852,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
         JSON.stringify(this.commandHistory)
       );
     } catch (error) {
-      console.error('Failed to save command history:', error);
+      this.consoleService.error('Failed to save command history', error, 'ControllerConsole');
     }
   }
 

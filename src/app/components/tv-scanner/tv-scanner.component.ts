@@ -704,7 +704,10 @@ export class TvScannerComponent implements OnInit, OnDestroy {
           }
         },
         error: () => {
-          this.consoleService.debug('Command check polling error (ignored)', 'TVScanner');
+          this.consoleService.debug(
+            'Command check polling error (ignored)',
+            'TVScanner'
+          );
           // Ignore polling errors - don't spam the UI
         },
       });
@@ -876,9 +879,15 @@ export class TvScannerComponent implements OnInit, OnDestroy {
           this.appendTvStatus(`✅ Result sent back to PC`, 'success');
         },
         error: (error) => {
-          this.consoleService.error('Failed to send result', error, 'TVScanner');
+          this.consoleService.error(
+            'Failed to send result',
+            error,
+            'TVScanner'
+          );
           this.appendTvStatus(
-            `❌ Failed to send result: ${error instanceof Error ? error.message : String(error)}`,
+            `❌ Failed to send result: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
             'error'
           );
         },

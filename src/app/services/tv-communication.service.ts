@@ -5,7 +5,14 @@ import { tap, catchError, switchMap, timeout } from 'rxjs/operators';
 import { ConsoleService } from './console.service';
 
 // Type alias for function execution results
-export type FunctionResult = string | number | boolean | null | undefined | object | FunctionResult[];
+export type FunctionResult =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | object
+  | FunctionResult[];
 
 export interface TVConnectionInfo {
   connected: boolean;

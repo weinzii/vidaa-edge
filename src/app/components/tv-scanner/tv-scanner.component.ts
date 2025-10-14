@@ -2,7 +2,11 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TvConnectionService } from '../../services/tv-connection.service';
 import { TvFunctionService } from '../../services/tv-function.service';
-import { TvPollingService, RemoteCommandCheck, RemoteCommand } from '../../services/tv-polling.service';
+import {
+  TvPollingService,
+  RemoteCommandCheck,
+  RemoteCommand,
+} from '../../services/tv-polling.service';
 import { FunctionResult } from '../../services/tv-command.service';
 import { Subscription, interval, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -873,25 +877,19 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       timestamp: string;
     }
   ): void {
-    this.tvPollingService
-      .receiveCommandResult(commandId, result)
-      .subscribe({
-        next: () => {
-          this.appendTvStatus(`✅ Result sent back to PC`, 'success');
-        },
-        error: (error: Error) => {
-          this.consoleService.error(
-            'Failed to send result',
-            error,
-            'TVScanner'
-          );
-          this.appendTvStatus(
-            `❌ Failed to send result: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-            'error'
-          );
-        },
-      });
+    this.tvPollingService.receiveCommandResult(commandId, result).subscribe({
+      next: () => {
+        this.appendTvStatus(`✅ Result sent back to PC`, 'success');
+      },
+      error: (error: Error) => {
+        this.consoleService.error('Failed to send result', error, 'TVScanner');
+        this.appendTvStatus(
+          `❌ Failed to send result: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          'error'
+        );
+      },
+    });
   }
 }

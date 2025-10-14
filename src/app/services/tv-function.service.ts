@@ -59,8 +59,9 @@ export class TvFunctionService {
         this.functionsSubject.next(functions);
         this.saveFunctions(data);
 
-        const deviceDetails =
-          this.tvConnectionService.extractDeviceDetails(data.deviceInfo);
+        const deviceDetails = this.tvConnectionService.extractDeviceDetails(
+          data.deviceInfo
+        );
         this.tvConnectionService.updateTvConnection({
           connected: true,
           ...deviceDetails,
@@ -94,10 +95,9 @@ export class TvFunctionService {
               new Date().getTime() - new Date(response.timestamp).getTime();
             const isConnected = dataAge < 300000; // 5 minutes threshold
 
-            const deviceDetails =
-              this.tvConnectionService.extractDeviceDetails(
-                response.deviceInfo
-              );
+            const deviceDetails = this.tvConnectionService.extractDeviceDetails(
+              response.deviceInfo
+            );
             this.tvConnectionService.updateTvConnection({
               connected: isConnected,
               ...deviceDetails,

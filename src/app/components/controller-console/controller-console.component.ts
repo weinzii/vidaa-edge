@@ -1,9 +1,18 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TvConnectionService, TVConnectionInfo } from '../../services/tv-connection.service';
-import { TvFunctionService, FunctionData } from '../../services/tv-function.service';
-import { TvCommandService, FunctionResult } from '../../services/tv-command.service';
+import {
+  TvConnectionService,
+  TVConnectionInfo,
+} from '../../services/tv-connection.service';
+import {
+  TvFunctionService,
+  FunctionData,
+} from '../../services/tv-function.service';
+import {
+  TvCommandService,
+  FunctionResult,
+} from '../../services/tv-command.service';
 import {
   FunctionFileGeneratorService,
   type GeneratedFiles,
@@ -12,7 +21,10 @@ import { Subscription, firstValueFrom } from 'rxjs';
 import { CodeModalComponent } from '../code-modal/code-modal.component';
 import { ConsoleService } from '../../services/console.service';
 import { FunctionLibraryComponent } from './function-library/function-library.component';
-import { CommandHistoryComponent, type CommandHistoryEntry } from './command-history/command-history.component';
+import {
+  CommandHistoryComponent,
+  type CommandHistoryEntry,
+} from './command-history/command-history.component';
 import { FunctionExecutionModalComponent } from './function-execution-modal/function-execution-modal.component';
 import { CustomCodeModalComponent } from './custom-code-modal/custom-code-modal.component';
 
@@ -91,18 +103,17 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   // CONNECTION MANAGEMENT
   private initConnection(): void {
     // Subscribe to TV functions
-    const functionsSubscription =
-      this.tvFunctionService.functions$.subscribe({
-        next: (functions: FunctionData[]) => {
-          if (functions && functions.length > 0) {
-            this.availableFunctions = functions;
-            this.filterFunctions();
-          }
-        },
-        error: () => {
-          // Handle silently
-        },
-      });
+    const functionsSubscription = this.tvFunctionService.functions$.subscribe({
+      next: (functions: FunctionData[]) => {
+        if (functions && functions.length > 0) {
+          this.availableFunctions = functions;
+          this.filterFunctions();
+        }
+      },
+      error: () => {
+        // Handle silently
+      },
+    });
 
     this.subscriptions.add(functionsSubscription);
 
@@ -436,10 +447,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
       const result = await firstValueFrom(
         isCustomCode
           ? this.tvCommandService.executeCustomCode(customCode)
-          : this.tvCommandService.executeFunction(
-              functionName,
-              parameters
-            )
+          : this.tvCommandService.executeFunction(functionName, parameters)
       );
 
       const functionResult = result as FunctionResult;

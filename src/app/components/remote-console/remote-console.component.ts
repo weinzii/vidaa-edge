@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DeviceDetectionService } from '../../services/device-detection.service';
 import { TvScannerComponent } from '../tv-scanner/tv-scanner.component';
@@ -10,6 +10,7 @@ import { ControllerConsoleComponent } from '../controller-console/controller-con
   imports: [CommonModule, TvScannerComponent, ControllerConsoleComponent],
   templateUrl: './remote-console.component.html',
   styles: [],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RemoteConsoleComponent implements OnInit {
   // Device Mode Detection

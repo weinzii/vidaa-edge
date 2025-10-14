@@ -1,22 +1,54 @@
-<div *ngIf="isOpen" id="modal-backdrop" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-  <div id="modal" [class.showing]="isOpen" [class.closing]="isClosing"
-    class="relative p-6 rounded-lg shadow-lg bg-customGray text-white w-[90%] max-w-lg transition-all ring-1 ring-inset ring-orange-400/20">
-    <button (click)="closeModal()" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+<div
+  *ngIf="isOpen"
+  id="modal-backdrop"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+>
+  <div
+    id="modal"
+    [class.showing]="isOpen"
+    [class.closing]="isClosing"
+    class="relative p-6 rounded-lg shadow-lg bg-customGray text-white w-[90%] max-w-lg transition-all ring-1 ring-inset ring-orange-400/20"
+  >
+    <button
+      (click)="closeModal()"
+      class="absolute top-4 right-4 text-gray-300 hover:text-gray-500"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="w-6 h-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        />
       </svg>
     </button>
-    <h2 class="mb-4 text-lg font-semibold text-orange-500 font-mono">Console</h2>
-    <div class="bg-black text-green-400 font-mono text-sm rounded-md p-4 h-60 overflow-y-auto border border-orange-400/20">
+    <h2 class="mb-4 text-lg font-semibold text-orange-500 font-mono">
+      Console
+    </h2>
+    <div
+      class="bg-black text-green-400 font-mono text-sm rounded-md p-4 h-60 overflow-y-auto border border-orange-400/20"
+    >
       <p
-        *ngFor="let log of logs"
-        [ngClass]="{ 'text-red-400': log.type === 'error', 'text-green-400': log.type === 'normal' }">
+        *ngFor="let log of logs$ | async"
+        [ngClass]="{
+          'text-red-400': log.type === 'error',
+          'text-green-400': log.type === 'normal'
+        }"
+      >
         > {{ log.message }}
       </p>
     </div>
     <div class="flex justify-end mt-4">
-      <button (click)="clearConsole()"
-        class="px-4 py-2 mr-2 rounded bg-orange-500 text-customGray hover:bg-orange-700 focus:ring focus:ring-orange-400/20">
+      <button
+        (click)="clearConsole()"
+        class="px-4 py-2 mr-2 rounded bg-orange-500 text-customGray hover:bg-orange-700 focus:ring focus:ring-orange-400/20"
+      >
         CLEAR
       </button>
     </div>

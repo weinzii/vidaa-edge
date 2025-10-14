@@ -1,28 +1,35 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  OnInit,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { ConsoleService, LogEntry } from '../../services/console.service';
-import { NgClass, NgFor, NgIf } from '@angular/common';
+import { NgClass, NgFor, NgIf, AsyncPipe } from '@angular/common';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-console-modal',
   templateUrl: './console-modal.component.html',
   styleUrls: ['./console-modal.component.css'],
-  imports: [NgIf, NgFor, NgClass],
+  imports: [NgIf, NgFor, NgClass, AsyncPipe],
   standalone: true,
   preserveWhitespaces: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConsoleModalComponent implements OnInit {
   @Input() isOpen = false;
   @Output() close = new EventEmitter<void>();
 
   isClosing = false;
-  logs: LogEntry[] = [];
+  logs$!: Observable<LogEntry[]>;
 
   constructor(private consoleService: ConsoleService) {}
 
   ngOnInit(): void {
-    this.consoleService.logs$.subscribe((logs) => {
-      this.logs = logs;
-    });
+    this.logs$ = this.consoleService.logs$;
   }
 
   openModal(): void {

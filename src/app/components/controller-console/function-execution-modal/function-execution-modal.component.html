@@ -1,0 +1,103 @@
+<!-- Function Execution Modal - uses app-code-modal wrapper -->
+<div *ngIf="isOpen && selectedFunction" class="space-y-4">
+  <!-- Source Code Display -->
+  <div *ngIf="selectedFunction.sourceCode">
+    <div class="block text-sm font-semibold text-gray-300 mb-2">
+      Source Code:
+    </div>
+    <pre
+      class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
+      >{{ selectedFunction.sourceCode }}</pre
+    >
+  </div>
+
+  <!-- Parameters -->
+  <div
+    *ngIf="
+      selectedFunction.parameters && selectedFunction.parameters.length > 0
+    "
+  >
+    <div class="block text-sm font-semibold text-gray-300 mb-2">
+      Parameters:
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div *ngFor="let param of selectedFunction.parameters; let i = index">
+        <label
+          [for]="'modal-param-' + i"
+          class="block mb-1 text-sm text-gray-400"
+          >{{ param }}</label
+        >
+        <input
+          [id]="'modal-param-' + i"
+          type="text"
+          [ngModel]="parameterValues[i]"
+          (ngModelChange)="onParameterChange(i, $event)"
+          class="w-full p-2 bg-customGray border border-purple-900 rounded text-gray-200 text-sm focus:outline-none focus:border-orange-500"
+          [placeholder]="getParameterHint(param)"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- No Parameters Info -->
+  <div
+    *ngIf="
+      !selectedFunction.parameters || selectedFunction.parameters.length === 0
+    "
+    class="text-sm text-gray-400 italic"
+  >
+    This function has no parameters.
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex gap-3">
+    <button
+      (click)="onExecute()"
+      [disabled]="isExecuting"
+      class="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+    >
+      {{ isExecuting ? '⏳ Executing...' : '▶️ Execute' }}
+    </button>
+    <button
+      (click)="onClear()"
+      [disabled]="isExecuting"
+      class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed"
+    >
+      🔄 Clear
+    </button>
+  </div>
+
+  <!-- Execution Result -->
+  <div *ngIf="executionResult !== null">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-sm font-semibold text-orange-400">📊 Result:</div>
+      <div class="flex gap-2">
+        <button
+          (click)="onCopyResult()"
+          class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+          title="Copy to clipboard"
+        >
+          📋 Copy
+        </button>
+        <button
+          *ngIf="shouldShowExpandButton(executionResult)"
+          (click)="onToggleResultExpansion()"
+          class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+        >
+          {{ isExecutionResultExpanded ? '▼ Collapse' : '▶ Expand' }}
+        </button>
+      </div>
+    </div>
+    <pre
+      class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-y-auto text-gray-300"
+      [class.max-h-48]="!isExecutionResultExpanded"
+      [class.max-h-96]="isExecutionResultExpanded"
+      >{{ formatResult(executionResult) }}</pre
+    >
+  </div>
+
+  <!-- Executing Indicator -->
+  <div *ngIf="isExecuting" class="text-center text-orange-400">
+    ⏳ Executing function on TV...
+  </div>
+</div>

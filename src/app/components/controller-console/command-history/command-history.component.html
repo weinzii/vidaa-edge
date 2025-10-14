@@ -1,0 +1,108 @@
+<div
+  class="bg-customGray-light rounded-lg p-6 mt-6 border border-purple-900"
+  *ngIf="commandHistory.length > 0"
+>
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-xl font-bold text-orange-500">📜 Command History</h3>
+    <button
+      (click)="onScrollToTop()"
+      class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-3 py-1 rounded hover:bg-purple-900/30"
+      title="Scroll to top"
+    >
+      ⬆️ Top
+    </button>
+  </div>
+  
+  <div class="space-y-3">
+    <div
+      *ngFor="let command of commandHistory.slice().reverse(); let i = index"
+      class="bg-customGray rounded border border-purple-900 p-3"
+    >
+      <div class="flex justify-between items-start mb-2">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline gap-2 flex-wrap">
+            <span class="font-mono font-bold text-orange-400 text-sm">{{
+              command.functionName
+            }}</span>
+            <!-- Show Parameters for regular functions - max 25% width -->
+            <span
+              *ngIf="
+                command.parameters &&
+                command.parameters.length > 0 &&
+                !command.customCode
+              "
+              class="text-gray-400 text-xs truncate max-w-[25%]"
+              [title]="'(' + command.parameters.join(', ') + ')'"
+              >({{ command.parameters.join(', ') }})</span
+            >
+            <!-- Expandable Custom Code -->
+            <button
+              *ngIf="command.customCode"
+              (click)="onHistoryToggle(commandHistory.length - 1 - i)"
+              class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
+              title="Show/Hide Code"
+            >
+              {{
+                isHistoryExpanded(commandHistory.length - 1 - i) ? '▼' : '▶'
+              }}
+              Show Code
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 ml-4 flex-shrink-0">
+          <span class="text-gray-400 text-xs">{{
+            formatTime(command.timestamp)
+          }}</span>
+          <button
+            (click)="onDeleteItem(i)"
+            class="text-xs text-red-400 hover:text-red-300 transition-colors"
+            title="Delete"
+          >
+            🗑️
+          </button>
+          <span
+            class="text-sm font-bold"
+            [class.text-green-400]="command.success"
+            [class.text-red-400]="!command.success"
+          >
+            {{ command.success ? '✅' : '❌' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Custom Code Display (Expandable) -->
+      <div
+        *ngIf="
+          command.customCode &&
+          isHistoryExpanded(commandHistory.length - 1 - i)
+        "
+        class="mb-2"
+      >
+        <pre
+          class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
+          >{{ command.customCode }}</pre
+        >
+      </div>
+
+      <!-- Show Result -->
+      <div *ngIf="command.result !== undefined && command.result !== null">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs text-gray-400">Result:</span>
+          <button
+            *ngIf="shouldShowExpandButton(command.result)"
+            (click)="onResultToggle(commandHistory.length - 1 - i)"
+            class="text-xs text-gray-400 hover:text-orange-400 transition-colors"
+          >
+            {{ isHistoryResultExpanded(commandHistory.length - 1 - i) ? '▼ Collapse' : '▶ Expand' }}
+          </button>
+        </div>
+        <pre
+          class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 overflow-y-auto"
+          [class.max-h-20]="!isHistoryResultExpanded(commandHistory.length - 1 - i)"
+          [class.max-h-96]="isHistoryResultExpanded(commandHistory.length - 1 - i)"
+          >{{ formatResult(command.result) }}</pre
+        >
+      </div>
+    </div>
+  </div>
+</div>

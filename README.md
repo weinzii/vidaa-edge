@@ -38,7 +38,7 @@ A development toolkit for VidaaOS-based TVs enabling remote function exploration
 ### 1. Start Development Server
 
 ```bash
-npm run receiver
+npm start
 ```
 
 ### 2. Configure DNS
@@ -117,9 +117,9 @@ vidaa-edge/
 ### Build Commands
 
 ```bash
-npm run dev          # Start development server
-npm run receiver     # Start API server + dev server
+npm start            # Start API server (dev-server.js on port 3000)
 npm run build        # Production build
+npm test             # Run tests
 ```
 
 ## Security Considerations

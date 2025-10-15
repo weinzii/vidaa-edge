@@ -41,7 +41,8 @@ export class TvScannerComponent implements OnInit, OnDestroy {
   isScreensaverActive = false;
   private screensaverTimeout: ReturnType<typeof setTimeout> | null = null;
   private lastActivityTime: Date = new Date();
-  screensaverPosition = { x: 50, y: 50 }; // Random position for screensaver text
+  screensaverAnimationId = 0; // Unique ID for dynamic animation
+  private animationUpdateInterval: ReturnType<typeof setInterval> | null = null; // Continuous animation updates
 
   private subscriptions = new Subscription();
 
@@ -64,6 +65,9 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     if (this.screensaverTimeout) {
       clearTimeout(this.screensaverTimeout);
     }
+    if (this.animationUpdateInterval) {
+      clearInterval(this.animationUpdateInterval);
+    }
   }
 
   // SCREENSAVER METHODS
@@ -80,6 +84,12 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     // Wake up if screensaver is active
     if (this.isScreensaverActive) {
       this.isScreensaverActive = false;
+      // Stop animation updates
+      if (this.animationUpdateInterval) {
+        clearInterval(this.animationUpdateInterval);
+        this.animationUpdateInterval = null;
+      }
+      this.cdr.detectChanges();
     }
 
     // Update last activity
@@ -87,13 +97,124 @@ export class TvScannerComponent implements OnInit, OnDestroy {
 
     // Set new timer (5 seconds)
     this.screensaverTimeout = setTimeout(() => {
-      // Set random position for screensaver text
-      this.screensaverPosition = {
-        x: 20 + Math.random() * 60, // 20% to 80%
-        y: 20 + Math.random() * 60, // 20% to 80%
-      };
-      this.isScreensaverActive = true;
+      this.activateScreensaver();
     }, 5000);
+  }
+
+  /**
+   * Activate screensaver with random animation
+   */
+  private activateScreensaver(): void {
+    // Generate unique animation ID
+    this.screensaverAnimationId = Date.now();
+
+    // Generate first animation
+    this.updateScreensaverAnimation();
+
+    // Activate screensaver
+    this.isScreensaverActive = true;
+    this.cdr.detectChanges();
+
+    // Start continuous animation updates every 20 seconds
+    this.animationUpdateInterval = setInterval(() => {
+      if (this.isScreensaverActive) {
+        this.updateScreensaverAnimation();
+      }
+    }, 20000); // Update every 20 seconds (when animation completes)
+  }
+
+  /**
+   * Update screensaver animation with new random path and bezier curve
+   */
+  private updateScreensaverAnimation(): void {
+    // Generate new animation ID
+    this.screensaverAnimationId = Date.now();
+
+    // Generate 5-8 random movement points for more organic flow
+    const numPoints = 5 + Math.floor(Math.random() * 4); // 5 to 8 points
+    const points: Array<{
+      x: number;
+      y: number;
+      scale: number;
+      rotate: number;
+    }> = [];
+
+    // Start point (centered by flexbox)
+    points.push({ x: 0, y: 0, scale: 1, rotate: 0 });
+
+    // Generate intermediate points
+    // Element is ~400px wide, ~200px tall (text-9xl + text)
+    // Screen is typically 1920x1080
+    // Safe movement range to avoid clipping:
+    // X: ±40vw (element stays within 10%-90% of screen)
+    // Y: ±35vh (element stays within 15%-85% of screen)
+    for (let i = 0; i < numPoints - 2; i++) {
+      points.push({
+        x: -40 + Math.random() * 80, // -40vw to 40vw
+        y: -35 + Math.random() * 70, // -35vh to 35vh
+        scale: 0.93 + Math.random() * 0.14, // 0.93 to 1.07
+        rotate: -6 + Math.random() * 12, // -6deg to 6deg
+      });
+    }
+
+    // End point (back to start)
+    points.push({ x: 0, y: 0, scale: 1, rotate: 0 });
+
+    // Generate random bezier curve for organic easing
+    const bezier = this.generateRandomBezier();
+
+    // Remove old animation style
+    const oldStyle = document.getElementById('screensaver-animation');
+    if (oldStyle) {
+      oldStyle.remove();
+    }
+
+    // Create dynamic CSS animation with keyframes
+    const animName = `float-${this.screensaverAnimationId}`;
+    let keyframesCSS = `@keyframes ${animName} {\n`;
+
+    // Generate keyframes dynamically based on number of points
+    points.forEach((point, index) => {
+      const percentage = Math.round((index / (points.length - 1)) * 100);
+      keyframesCSS += `  ${percentage}% { transform: translate(${point.x}vw, ${point.y}vh) scale(${point.scale}) rotate(${point.rotate}deg); }\n`;
+    });
+
+    keyframesCSS += `}`;
+
+    const css = `
+      ${keyframesCSS}
+      .screensaver-float-${this.screensaverAnimationId} {
+        animation: ${animName} 20s ${bezier} infinite;
+        will-change: transform;
+      }
+    `;
+
+    const style = document.createElement('style');
+    style.id = 'screensaver-animation';
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    // Trigger change detection to apply new class
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Generate random cubic-bezier curve for organic easing
+   */
+  private generateRandomBezier(): string {
+    // Generate control points for cubic-bezier
+    // P1: (x1, y1) - first control point
+    // P2: (x2, y2) - second control point
+    // All values between 0 and 1 for smooth curves
+
+    const x1 = 0.2 + Math.random() * 0.4; // 0.2 to 0.6
+    const y1 = Math.random() * 0.3; // 0 to 0.3 (slight ease-in)
+    const x2 = 0.4 + Math.random() * 0.4; // 0.4 to 0.8
+    const y2 = 0.7 + Math.random() * 0.3; // 0.7 to 1.0 (ease-out)
+
+    return `cubic-bezier(${x1.toFixed(2)}, ${y1.toFixed(2)}, ${x2.toFixed(
+      2
+    )}, ${y2.toFixed(2)})`;
   }
 
   formatScreensaverTime(): string {
@@ -757,6 +878,9 @@ export class TvScannerComponent implements OnInit, OnDestroy {
   }
 
   private executeRemoteCommand(command: RemoteCommand): void {
+    // Activity detected - reset screensaver
+    this.resetScreensaverTimer();
+
     const result = {
       commandId: command.id,
       function: command.function,

@@ -370,7 +370,7 @@ export class FileExplorationService {
 
           // Update extractedPaths to only contain new paths
           analysis.extractedPaths = newPaths;
-          
+
           // Store ignored paths separately
           analysis.ignoredPaths = ignoredPaths;
 
@@ -826,7 +826,9 @@ export class FileExplorationService {
     const testMatches = content.match(/\[\s*!?\s*-[frx]\s+([^\]]+)\s*\]/g);
     if (testMatches) {
       for (const match of testMatches) {
-        let path = match.replace(/\[\s*!?\s*-[frx]\s+/, '').replace(/\s*\]/, '');
+        let path = match
+          .replace(/\[\s*!?\s*-[frx]\s+/, '')
+          .replace(/\s*\]/, '');
         path = this.resolveVariables(path);
         // Skip looksLikeFile() - if a script tests with -f/-r/-x, it IS a file
         if (this.isValidPath(path)) {

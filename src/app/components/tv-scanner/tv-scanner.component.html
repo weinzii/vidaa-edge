@@ -5,12 +5,11 @@
   <!-- Screensaver Overlay -->
   <div
     *ngIf="isScreensaverActive"
-    class="fixed inset-0 bg-black bg-opacity-95 backdrop-blur-xl z-50"
+    class="fixed inset-0 bg-black bg-opacity-95 backdrop-blur-xl z-50 flex items-center justify-center"
   >
     <div
-      class="absolute select-none animate-float-blur"
-      [style.top.%]="screensaverPosition.y"
-      [style.left.%]="screensaverPosition.x"
+      class="select-none"
+      [class]="'screensaver-float-' + screensaverAnimationId"
     >
       <div class="text-center">
         <div class="text-9xl opacity-25">📺</div>

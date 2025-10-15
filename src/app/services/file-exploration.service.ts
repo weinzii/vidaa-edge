@@ -6,6 +6,7 @@ import {
   FileAnalysis,
   ExplorationSession,
   ExplorationStats,
+  TreeNode,
 } from '../models/file-exploration';
 import {
   EXPLORATION_PATHS,
@@ -1140,5 +1141,122 @@ export class FileExplorationService {
     };
 
     this.statsSubject.next(stats);
+  }
+
+  /**
+   * Build a tree structure from flat file results
+   * @param results Optional array of results. If not provided, uses current session results
+   */
+  public buildFileTree(results?: FileAnalysis[]): TreeNode[] {
+    // Use provided results or fall back to session results
+    const fileResults =
+      results ||
+      (this.session ? Array.from(this.session.results.values()) : []);
+
+    if (fileResults.length === 0) {
+      return [];
+    }
+
+    const root: TreeNode = {
+      name: '',
+      path: '',
+      type: 'directory',
+      level: -1,
+      children: [],
+      isExpanded: true,
+    };
+
+    fileResults.forEach((file) => {
+      const parts = file.path.split('/').filter((p) => p);
+      let currentNode = root;
+
+      parts.forEach((part, index) => {
+        const isLastPart = index === parts.length - 1;
+
+        if (!currentNode.children) {
+          currentNode.children = [];
+        }
+
+        let childNode = currentNode.children.find(
+          (child) => child.name === part
+        );
+
+        if (!childNode) {
+          const fullPath = '/' + parts.slice(0, index + 1).join('/');
+
+          childNode = {
+            name: part,
+            path: fullPath,
+            type: isLastPart ? 'file' : 'directory',
+            level: index,
+            isExpanded: true, // All directories expanded by default
+            children: isLastPart ? undefined : [],
+          };
+
+          if (isLastPart) {
+            childNode.file = file;
+          }
+
+          currentNode.children.push(childNode);
+        }
+
+        if (!isLastPart) {
+          currentNode = childNode;
+        }
+      });
+    });
+
+    // Sort and calculate stats
+    if (root.children) {
+      this.sortTreeNodes(root.children);
+      this.calculateStats(root.children);
+    }
+
+    return root.children || [];
+  }
+
+  /**
+   * Sort tree nodes: directories first, then files, both alphabetically
+   */
+  private sortTreeNodes(nodes: TreeNode[]): void {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'directory' ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    nodes.forEach((node) => {
+      if (node.children) {
+        this.sortTreeNodes(node.children);
+      }
+    });
+  }
+
+  /**
+   * Calculate file and directory counts for each directory
+   */
+  private calculateStats(nodes: TreeNode[]): void {
+    nodes.forEach((node) => {
+      if (node.type === 'directory' && node.children) {
+        this.calculateStats(node.children);
+
+        let fileCount = 0;
+        let dirCount = 0;
+
+        node.children.forEach((child) => {
+          if (child.type === 'file') {
+            fileCount++;
+          } else {
+            dirCount++;
+            fileCount += child.fileCount || 0;
+            dirCount += child.directoryCount || 0;
+          }
+        });
+
+        node.fileCount = fileCount;
+        node.directoryCount = dirCount;
+      }
+    });
   }
 }

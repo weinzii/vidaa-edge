@@ -1,0 +1,32 @@
+/* File details styles */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Custom scrollbar styles for scrollable containers */
+:host ::ng-deep .overflow-y-auto {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(31, 41, 55, 0.5) !important;
+}
+
+:host ::ng-deep .overflow-y-auto::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+:host ::ng-deep .overflow-y-auto::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5) !important;
+  border-radius: 6px !important;
+}
+
+:host ::ng-deep .overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(139, 92, 246, 0.5) !important;
+  border-radius: 6px !important;
+  border: 2px solid rgba(31, 41, 55, 0.5) !important;
+}
+
+:host ::ng-deep .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(139, 92, 246, 0.7) !important;
+}

@@ -8,6 +8,7 @@ import { ApiComponent } from './pages/documentation/pages/api/api.component';
 import { InstallationComponent } from './pages/documentation/pages/installation/installation.component';
 import { RemoteConsoleComponent } from './components/remote-console/remote-console.component';
 import { FileExplorerComponent } from './components/file-explorer/file-explorer.component';
+import { CanDeactivateFileExplorerGuard } from './guards/can-deactivate-file-explorer.guard';
 
 export const appRoutes: Route[] = [
   {
@@ -57,6 +58,7 @@ export const appRoutes: Route[] = [
     path: 'file-explorer',
     component: FileExplorerComponent,
     title: 'Vidaahub - File System Explorer',
+    canDeactivate: [CanDeactivateFileExplorerGuard],
   },
   {
     path: '**',

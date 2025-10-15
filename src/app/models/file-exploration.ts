@@ -61,3 +61,15 @@ export interface ExplorationStats {
   pathsDiscovered: number;
   progress: number; // 0-100
 }
+
+export interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: TreeNode[];
+  file?: FileAnalysis; // Only for files
+  isExpanded?: boolean;
+  level: number;
+  fileCount?: number; // For directories: count of files in this directory and subdirectories
+  directoryCount?: number; // For directories: count of subdirectories
+}

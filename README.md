@@ -13,7 +13,7 @@ A development toolkit for VidaaOS-based TVs enabling remote function exploration
 
 ---
 
-## About This Fork
+## New
 
 This fork extends the original VidaaEdge project with enhanced JavaScript execution and exploration capabilities:
 

@@ -33,8 +33,6 @@ This fork extends the original VidaaEdge project with enhanced JavaScript execut
 - **Phoenix Services:** Understand `phoenix://service/*` architecture and endpoints
 - **Debug Access:** Enable UART/debug mode for deeper system access
 
-**Thanks to weinzii for the excellent foundation!**
-
 ---
 
 ## Features

@@ -10,6 +10,7 @@ A development toolkit for VidaaOS-based TVs enabling remote function exploration
 
 - Original project by [weinzii](https://github.com/weinzii/vidaa-edge)
 - Exploit research by [BananaMafia](https://bananamafia.dev/post/hisensehax/)
+- Functions scanning, remote code execution and file browser by [simonbuehler](https://github.com/simonbuehler)
 
 ---
 

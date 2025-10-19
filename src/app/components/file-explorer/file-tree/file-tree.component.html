@@ -1,0 +1,95 @@
+<div class="flex flex-col h-full">
+  <div
+    *ngIf="treeNodes.length === 0"
+    class="flex-1 flex flex-col items-center justify-center text-gray-500"
+  >
+    <div class="text-6xl mb-4">📂</div>
+    <p class="text-sm">No files to display in tree view</p>
+  </div>
+
+  <!-- Recursive Tree Structure -->
+  <div *ngIf="treeNodes.length > 0" class="flex-1 min-h-0 overflow-y-auto p-4">
+    <div *ngFor="let node of treeNodes" class="space-y-1">
+      <ng-container
+        *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: node }"
+      ></ng-container>
+    </div>
+  </div>
+</div>
+
+<!-- Tree Node Template (recursive) -->
+<ng-template #treeNodeTemplate let-node>
+  <div class="select-none">
+    <!-- Directory Node -->
+    <div
+      *ngIf="node.type === 'directory'"
+      class="flex items-center gap-2 px-2 py-1 hover:bg-customGray rounded cursor-pointer transition-colors"
+      (click)="toggleNode(node)"
+      (keyup.enter)="toggleNode(node)"
+      (keyup.space)="toggleNode(node)"
+      tabindex="0"
+      role="button"
+      [attr.aria-expanded]="node.isExpanded"
+    >
+      <span class="text-gray-400 flex-shrink-0">
+        {{ node.isExpanded ? '📂' : '📁' }}
+      </span>
+      <span class="text-sm text-gray-200 flex-1">{{ node.name }}</span>
+      <span class="text-xs text-gray-500">
+        {{ node.fileCount || 0 }} files
+        <span *ngIf="node.directoryCount && node.directoryCount > 0">
+          • {{ node.directoryCount }} dirs
+        </span>
+      </span>
+    </div>
+
+    <!-- File Node -->
+    <div
+      *ngIf="node.type === 'file'"
+      class="flex items-center gap-2 px-2 py-1 hover:bg-customGray rounded cursor-pointer transition-colors"
+      [class.bg-customGray]="selectedFile === node.file"
+      [class.border-l-4]="selectedFile === node.file"
+      [class.border-l-orange-500]="selectedFile === node.file"
+      (click)="selectFile(node.file!)"
+      (keyup.enter)="selectFile(node.file!)"
+      (keyup.space)="selectFile(node.file!)"
+      tabindex="0"
+      role="button"
+    >
+      <span class="text-gray-400 flex-shrink-0">{{
+        getFileIcon(node.file!)
+      }}</span>
+      <span class="text-sm text-gray-200 flex-1 truncate">{{ node.name }}</span>
+      <span
+        *ngIf="node.file"
+        class="px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0"
+        [ngClass]="{
+          'bg-green-900 text-green-300': node.file.status === 'success',
+          'bg-orange-900 text-orange-300':
+            node.file.status === 'access-denied' ||
+            node.file.status === 'not-found',
+          'bg-red-900 text-red-300': node.file.status === 'error'
+        }"
+      >
+        {{ node.file.status }}
+      </span>
+    </div>
+
+    <!-- Children (if expanded) -->
+    <div
+      *ngIf="
+        node.type === 'directory' &&
+        node.isExpanded &&
+        node.children &&
+        node.children.length > 0
+      "
+      class="ml-4 border-l-2 border-gray-700 pl-2 space-y-1"
+    >
+      <ng-container *ngFor="let child of node.children">
+        <ng-container
+          *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: child }"
+        ></ng-container>
+      </ng-container>
+    </div>
+  </div>
+</ng-template>

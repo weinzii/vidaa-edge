@@ -1,0 +1,48 @@
+<div
+  class="max-w-4xl mx-auto p-5 bg-gray-900 text-gray-200 min-h-screen font-sans relative overflow-y-auto hide-scrollbar"
+  [class.screensaver-active]="isScreensaverActive"
+>
+  <!-- Screensaver Overlay -->
+  <div
+    *ngIf="isScreensaverActive"
+    class="fixed inset-0 bg-black bg-opacity-95 backdrop-blur-xl z-50 flex items-center justify-center"
+  >
+    <div
+      class="select-none"
+      [class]="'screensaver-float-' + screensaverAnimationId"
+    >
+      <div class="text-center">
+        <div class="text-9xl opacity-25">📺</div>
+        <div class="text-2xl text-gray-600 tracking-widest mt-6 font-light">
+          SCREEN SAVER
+        </div>
+        <div class="mt-4 text-sm text-gray-700">
+          Last activity: {{ formatScreensaverTime() }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header class="text-center mb-8">
+    <h1 class="text-blue-400 text-3xl font-bold mb-3">
+      📺 TV Function Scanner
+    </h1>
+    <p class="text-gray-400">Auto-scanning and uploading TV functions...</p>
+  </header>
+
+  <!-- TV Status Display -->
+  <div class="mb-6" *ngIf="tvStatusMessage">
+    <div
+      class="bg-gray-800 border-l-4 p-4 rounded"
+      [class.border-green-500]="tvStatusType === 'success'"
+      [class.border-red-500]="tvStatusType === 'error'"
+      [class.border-blue-500]="tvStatusType === 'info'"
+    >
+      <h3 class="text-lg font-semibold mb-3">📋 Scanner Status</h3>
+      <pre
+        class="whitespace-pre-wrap bg-black p-4 rounded font-mono text-sm leading-relaxed max-h-80 overflow-y-auto"
+        >{{ tvStatusMessage }}</pre
+      >
+    </div>
+  </div>
+</div>

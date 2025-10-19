@@ -1,0 +1,210 @@
+<div
+  class="max-w-6xl mx-auto p-5 bg-customGray text-gray-200 min-h-screen font-sans"
+>
+  <header class="text-center mb-4">
+    <h1 class="text-orange-500 text-3xl font-bold mb-1">
+      💻 Remote Function Controller
+    </h1>
+    <!-- Only show connection status when functions are available -->
+    <div class="flex justify-center" *ngIf="availableFunctions.length > 0">
+      <div
+        class="flex items-center gap-3 bg-customGray-light px-4 py-2 rounded-lg border border-purple-900"
+        [class.bg-green-900]="tvConnection.connected"
+        [class.bg-red-900]="!tvConnection.connected"
+      >
+        <div
+          class="w-3 h-3 rounded-full"
+          [class.bg-green-400]="tvConnection.connected"
+          [class.bg-red-400]="!tvConnection.connected"
+        ></div>
+        <div class="text-sm">
+          <span class="font-medium">
+            {{ getDeviceBrand() }} TV ({{ getDeviceModel() }})
+            {{ tvConnection.connected ? 'Connected' : 'Disconnected' }} • FW
+            {{ getDeviceFirmware() }} • Last seen
+            {{ formatTime(tvConnection.lastSeen) }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Waiting for TV Instructions -->
+  <div
+    class="max-w-4xl mx-auto"
+    *ngIf="availableFunctions.length === 0 && !tvConnection.connected"
+  >
+    <div
+      class="bg-customGray-light rounded-lg p-8 shadow-lg border border-purple-900"
+    >
+      <h2 class="text-2xl font-bold text-orange-500 mb-4">
+        📺 TV Setup Required
+      </h2>
+      <p class="text-gray-300 mb-8">
+        To use the Remote Console, please follow these steps on your TV:
+      </p>
+
+      <div class="space-y-6">
+        <div class="flex items-start gap-4">
+          <span
+            class="bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+            >1</span
+          >
+          <div>
+            <h4 class="text-lg font-semibold text-white mb-2">
+              Open TV Browser
+            </h4>
+            <p class="text-gray-300">
+              Navigate to the browser app on your Hisense/VIDAA TV
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4">
+          <span
+            class="bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+            >2</span
+          >
+          <div>
+            <h4 class="text-lg font-semibold text-white mb-2">
+              Visit Development Console
+            </h4>
+            <p class="text-gray-300 mb-2">Go to:</p>
+            <code
+              class="bg-customGray text-orange-400 px-3 py-1 rounded block border border-purple-900"
+              >https://vidaahub.com/console</code
+            >
+            <p class="text-gray-400 text-sm mt-1">
+              DNS must redirect vidaahub.com to your local dev server
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4">
+          <span
+            class="bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+            >3</span
+          >
+          <div>
+            <h4 class="text-lg font-semibold text-white mb-2">
+              Auto-Scan Functions
+            </h4>
+            <p class="text-gray-300">
+              The TV will automatically scan and upload available functions
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="mt-8 p-5 bg-customGray rounded-lg border-l-4 border-orange-500"
+      >
+        <div class="flex items-center justify-center gap-3 mb-3">
+          <div class="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+          <span class="text-orange-400 font-bold"
+            >Waiting for TV connection...</span
+          >
+        </div>
+        <p class="text-gray-400 text-sm text-center italic">
+          This page automatically updates when TV functions are detected.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Function Library Component -->
+  <app-function-library
+    *ngIf="availableFunctions.length > 0"
+    [availableFunctions]="availableFunctions"
+    [filteredFunctions]="filteredFunctions"
+    [functionFilter]="functionFilter"
+    [selectedCategory]="selectedCategory"
+    [expandedSources]="expandedSources"
+    (functionFilterChange)="onFunctionFilterChange($event)"
+    (categorySelected)="onCategorySelected($event)"
+    (functionSelected)="onFunctionSelected($event)"
+    (sourceExpansionToggled)="onSourceExpansionToggled($event)"
+    (saveToDisk)="onSaveToDisk()"
+    (customCodeOpen)="onCustomCodeOpen()"
+    (copyToCustomCode)="onCopyToCustomCode($event)"
+  ></app-function-library>
+
+  <!-- Function Execution Modal -->
+  <app-code-modal
+    [isOpen]="showExecutionModal"
+    [title]="'Execute Function: ' + (selectedFunction?.name || '')"
+    [showExecuteButton]="false"
+    (closeModal)="onCloseExecutionModal()"
+  >
+    <app-function-execution-modal
+      [isOpen]="showExecutionModal"
+      [selectedFunction]="selectedFunction"
+      [parameterValues]="parameterValues"
+      [executionResult]="executionResult"
+      [isExecuting]="isExecuting"
+      [isExecutionResultExpanded]="isExecutionResultExpanded"
+      (closeModal)="onCloseExecutionModal()"
+      (executeFunction)="onExecuteFunction()"
+      (clearParameters)="onClearParameters()"
+      (copyResult)="onCopyExecutionResult()"
+      (parameterChanged)="onParameterChanged($event)"
+      (resultExpansionToggled)="onExecutionResultExpansionToggled()"
+    ></app-function-execution-modal>
+  </app-code-modal>
+
+  <!-- Custom Code Modal -->
+  <app-code-modal
+    [isOpen]="showCustomCodeModal"
+    [title]="'Custom JavaScript Code'"
+    [showExecuteButton]="false"
+    (closeModal)="onCloseCustomCodeModal()"
+  >
+    <app-custom-code-modal
+      [isOpen]="showCustomCodeModal"
+      [customJsCode]="customJsCode"
+      [customCodeResult]="customCodeResult"
+      [isExecutingCustomCode]="isExecutingCustomCode"
+      [isCustomCodeExpanded]="isCustomCodeExpanded"
+      [isCustomCodeResultExpanded]="isCustomCodeResultExpanded"
+      (closeModal)="onCloseCustomCodeModal()"
+      (executeCode)="onExecuteCustomCode()"
+      (codeChanged)="onCustomCodeChanged($event)"
+      (copyResult)="onCopyCustomCodeResult()"
+      (codeExpansionToggled)="onCustomCodeExpansionToggled()"
+      (resultExpansionToggled)="onCustomCodeResultExpansionToggled()"
+    ></app-custom-code-modal>
+  </app-code-modal>
+
+  <!-- Command History Component -->
+  <app-command-history
+    [commandHistory]="commandHistory"
+    [expandedHistoryItems]="expandedHistoryItems"
+    [expandedHistoryResults]="expandedHistoryResults"
+    (historyExpansionToggled)="onHistoryExpansionToggled($event)"
+    (historyResultExpansionToggled)="onHistoryResultExpansionToggled($event)"
+    (historyItemDeleted)="onHistoryItemDeleted($event)"
+  ></app-command-history>
+
+  <!-- Fixed Scroll to Top Button -->
+  <button
+    *ngIf="showScrollButton"
+    (click)="onScrollToTop()"
+    class="fixed bottom-6 right-6 bg-purple-900 hover:bg-purple-800 text-orange-400 p-4 rounded-full shadow-lg transition-all duration-300 z-50 border border-orange-400"
+    title="Scroll to top"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-6 w-6"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M5 10l7-7m0 0l7 7m-7-7v18"
+      />
+    </svg>
+  </button>
+</div>

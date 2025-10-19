@@ -1,0 +1,84 @@
+<div class="bg-customGray-light rounded-lg p-6 mb-6 border border-purple-900">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold text-orange-500">📚 Function Library</h2>
+    <div class="flex gap-3">
+      <input
+        type="text"
+        [ngModel]="functionFilter"
+        (ngModelChange)="onFilterChange($event)"
+        placeholder="🔍 Search functions..."
+        class="bg-customGray text-white px-4 py-2 rounded-lg border border-purple-900 focus:border-orange-500 focus:outline-none"
+        aria-label="Search functions"
+      />
+      <button
+        (click)="onSaveToDisk()"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+        aria-label="Save functions to disk"
+        [disabled]="availableFunctions.length === 0"
+      >
+        💾 Save to Disk
+      </button>
+      <button
+        (click)="onCustomCodeOpen()"
+        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+        aria-label="Open custom code editor"
+      >
+        📝 Custom Code
+      </button>
+    </div>
+  </div>
+
+  <!-- Horizontal Categories -->
+  <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+    <button
+      *ngFor="let category of categories"
+      class="px-4 py-2 rounded-lg transition-colors whitespace-nowrap text-sm"
+      [class.bg-orange-600]="selectedCategory === category.key"
+      [class.text-white]="selectedCategory === category.key"
+      [class.bg-customGray]="selectedCategory !== category.key"
+      [class.text-gray-300]="selectedCategory !== category.key"
+      [class.hover:bg-orange-500]="selectedCategory !== category.key"
+      (click)="onCategorySelect(category.key)"
+    >
+      {{ category.icon }} {{ category.name }} ({{
+        getCategoryCount(category.key)
+      }})
+    </button>
+  </div>
+
+  <!-- Compact Function Grid - SMALLER! -->
+  <div
+    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1"
+  >
+    <div
+      *ngFor="let func of filteredFunctions"
+      [ngClass]="{
+        'bg-customGray rounded-lg p-2 cursor-pointer transition-all hover:bg-purple-900/30 relative border border-purple-900': true
+      }"
+      (click)="onFunctionSelect(func)"
+      tabindex="0"
+      role="button"
+      (keyup.enter)="onFunctionSelect(func)"
+      (keyup.space)="onFunctionSelect(func)"
+    >
+      <div class="flex items-center justify-between">
+        <span class="text-white text-xs font-medium truncate">{{
+          func.name
+        }}</span>
+        <div class="flex items-center gap-1">
+          <button
+            (click)="onCopyToCustomCode(func); $event.stopPropagation()"
+            class="text-xs text-orange-400 hover:text-orange-300 transition-colors"
+            title="Copy to Custom Code"
+          >
+            📋
+          </button>
+          <span
+            class="text-xs bg-purple-900 text-gray-300 px-1 py-0.5 rounded flex-shrink-0"
+            >{{ getFunctionType(func.name) }}</span
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,449 @@
+<div class="flex flex-col h-full">
+  <div
+    *ngIf="!selectedFile"
+    class="flex-1 flex flex-col items-center justify-center text-gray-500"
+  >
+    <div class="text-6xl mb-4">📄</div>
+    <p class="text-sm">Select a file to view details</p>
+  </div>
+
+  <!-- LIST VIEW MODE (Metadata first) -->
+  <div
+    *ngIf="selectedFile && viewMode === 'list'"
+    class="flex-1 min-h-0 flex flex-col"
+  >
+    <div
+      class="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-purple-900 border-b border-purple-700"
+    >
+      <h3 class="text-sm font-semibold text-purple-200 break-all flex-1">
+        {{ selectedFile.path }}
+      </h3>
+      <button
+        class="ml-2 px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors flex-shrink-0"
+        (click)="copyToClipboard(selectedFile.path)"
+        title="Copy path"
+      >
+        📋
+      </button>
+    </div>
+
+    <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+      <!-- Discovered From (Source File) -->
+      <div
+        *ngIf="selectedFile.discoveredFrom"
+        class="p-3 bg-purple-900/20 border border-purple-700 rounded space-y-1"
+      >
+        <p class="text-xs font-semibold text-purple-300">📍 Discovered From:</p>
+        <button
+          class="text-sm text-orange-400 hover:text-orange-300 underline cursor-pointer break-all text-left"
+          (click)="selectFile(selectedFile.discoveredFrom)"
+          title="Click to view source file"
+        >
+          {{ selectedFile.discoveredFrom }}
+        </button>
+      </div>
+
+      <!-- File Metadata -->
+      <div class="space-y-2">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+            >Status:</span
+          >
+          <span
+            class="px-2 py-0.5 rounded text-xs font-medium"
+            [ngClass]="{
+              'bg-green-900 text-green-300': selectedFile.status === 'success',
+              'bg-orange-900 text-orange-300':
+                selectedFile.status === 'access-denied' ||
+                selectedFile.status === 'not-found',
+              'bg-red-900 text-red-300': selectedFile.status === 'error'
+            }"
+            >{{ selectedFile.status }}</span
+          >
+        </div>
+        <div
+          class="flex items-center gap-2 text-sm"
+          *ngIf="selectedFile.status === 'success'"
+        >
+          <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+            >Type:</span
+          >
+          <span class="text-gray-200">{{ selectedFile.fileType }}</span>
+        </div>
+        <div
+          class="flex items-center gap-2 text-sm"
+          *ngIf="selectedFile.status === 'success'"
+        >
+          <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+            >Size:</span
+          >
+          <span class="text-gray-200">{{ formatSize(selectedFile.size) }}</span>
+        </div>
+        <div
+          class="flex items-center gap-2 text-sm"
+          *ngIf="selectedFile.magicBytes"
+        >
+          <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+            >Magic Bytes:</span
+          >
+          <span
+            class="font-mono text-xs bg-gray-900 border border-gray-700 px-2 py-1 rounded text-gray-200"
+            >{{ selectedFile.magicBytes }}</span
+          >
+        </div>
+        <div
+          class="flex items-center gap-2 text-sm"
+          *ngIf="selectedFile.confidence"
+        >
+          <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+            >Confidence:</span
+          >
+          <span class="text-gray-200"
+            >{{ (selectedFile.confidence * 100).toFixed(1) }}%</span
+          >
+        </div>
+        <div class="flex items-center gap-2 text-sm" *ngIf="selectedFile.error">
+          <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+            >Error:</span
+          >
+          <span class="text-red-400">{{ selectedFile.error }}</span>
+        </div>
+      </div>
+
+      <!-- Extracted Paths -->
+      <div
+        *ngIf="
+          selectedFile.extractedPaths.length > 0 ||
+          selectedFile.ignoredPaths?.length
+        "
+        class="space-y-2"
+      >
+        <h4 class="text-sm font-bold text-purple-200">
+          🔗 Extracted Paths ({{ selectedFile.extractedPaths.length
+          }}<span
+            *ngIf="selectedFile.ignoredPaths?.length"
+            class="text-gray-400"
+            >, {{ selectedFile.ignoredPaths?.length }} ignored</span
+          >)
+        </h4>
+
+        <!-- New Paths -->
+        <div *ngIf="selectedFile.extractedPaths.length > 0" class="space-y-1">
+          <div
+            *ngFor="let path of selectedFile.extractedPaths"
+            class="flex items-center justify-between gap-2 px-2 py-1 bg-customGray border border-green-700 rounded text-xs break-all"
+          >
+            <span class="text-gray-300">{{ path }}</span>
+            <button
+              class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors flex-shrink-0"
+              (click)="copyToClipboard(path)"
+              title="Copy"
+            >
+              📋
+            </button>
+          </div>
+        </div>
+
+        <!-- Ignored Paths -->
+        <div *ngIf="selectedFile.ignoredPaths?.length" class="space-y-1 mt-2">
+          <p class="text-xs text-gray-400 italic">
+            ⚠️ Already in queue/scanned:
+          </p>
+          <div
+            *ngFor="let path of selectedFile.ignoredPaths"
+            class="flex items-center justify-between gap-2 px-2 py-1 bg-customGray border border-gray-600 rounded text-xs break-all opacity-60"
+          >
+            <span class="text-gray-400">{{ path }}</span>
+            <button
+              class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors flex-shrink-0"
+              (click)="copyToClipboard(path)"
+              title="Copy"
+            >
+              📋
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Content -->
+      <div
+        *ngIf="selectedFile.status === 'success' && !selectedFile.isBinary"
+        class="space-y-2"
+      >
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-bold text-purple-200">📄 Full Content</h4>
+          <button
+            class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
+            (click)="copyToClipboard(selectedFile.content || '')"
+            title="Copy full content"
+          >
+            📋 Copy All
+          </button>
+        </div>
+        <pre
+          class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto font-mono whitespace-pre-wrap break-all"
+          >{{ selectedFile.content || '' }}</pre
+        >
+      </div>
+
+      <!-- Binary Preview -->
+      <div
+        *ngIf="selectedFile.status === 'success' && selectedFile.isBinary"
+        class="p-4 bg-customGray border border-gray-700 rounded space-y-2"
+      >
+        <p class="text-sm text-gray-300">
+          🔒 Binary file detected. Type:
+          <strong class="text-purple-200">{{ selectedFile.fileType }}</strong>
+        </p>
+        <p class="text-sm text-gray-300">
+          Size: {{ formatSize(selectedFile.size) }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TREE VIEW MODE (Content first with tabs) -->
+  <div
+    *ngIf="selectedFile && viewMode === 'tree'"
+    class="flex-1 min-h-0 flex flex-col"
+  >
+    <div
+      class="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-purple-900 border-b border-purple-700"
+    >
+      <h3 class="text-sm font-semibold text-purple-200 break-all flex-1">
+        {{ selectedFile.path }}
+      </h3>
+      <button
+        class="ml-2 px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors flex-shrink-0"
+        (click)="copyToClipboard(selectedFile.path)"
+        title="Copy path"
+      >
+        📋
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div
+      class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4"
+    >
+      <div class="flex gap-2">
+        <button
+          (click)="activeTab = 'content'"
+          class="px-4 py-2 text-sm font-medium transition-colors border-b-2"
+          [ngClass]="{
+            'text-orange-400 border-orange-500': activeTab === 'content',
+            'text-gray-400 border-transparent hover:text-gray-200':
+              activeTab !== 'content'
+          }"
+        >
+          📄 Content
+        </button>
+        <button
+          (click)="activeTab = 'metadata'"
+          class="px-4 py-2 text-sm font-medium transition-colors border-b-2"
+          [ngClass]="{
+            'text-orange-400 border-orange-500': activeTab === 'metadata',
+            'text-gray-400 border-transparent hover:text-gray-200':
+              activeTab !== 'metadata'
+          }"
+        >
+          ℹ️ Metadata
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+      <!-- Content Tab -->
+      <div *ngIf="activeTab === 'content'" class="space-y-4">
+        <!-- Text Content -->
+        <div
+          *ngIf="selectedFile.status === 'success' && !selectedFile.isBinary"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-bold text-purple-200">📄 Full Content</h4>
+            <button
+              class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
+              (click)="copyToClipboard(selectedFile.content || '')"
+              title="Copy full content"
+            >
+              📋 Copy All
+            </button>
+          </div>
+          <pre
+            class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto font-mono whitespace-pre-wrap break-all"
+            >{{ selectedFile.content || '' }}</pre
+          >
+        </div>
+
+        <!-- Binary Preview -->
+        <div
+          *ngIf="selectedFile.status === 'success' && selectedFile.isBinary"
+          class="p-4 bg-customGray border border-gray-700 rounded space-y-2"
+        >
+          <p class="text-sm text-gray-300">
+            🔒 Binary file detected. Type:
+            <strong class="text-purple-200">{{ selectedFile.fileType }}</strong>
+          </p>
+          <p class="text-sm text-gray-300">
+            Size: {{ formatSize(selectedFile.size) }}
+          </p>
+        </div>
+
+        <!-- Error Message -->
+        <div
+          *ngIf="selectedFile.status !== 'success'"
+          class="p-4 bg-red-900/20 border border-red-800 rounded"
+        >
+          <p class="text-sm text-red-300">
+            {{ selectedFile.error || 'Failed to read file' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Metadata Tab -->
+      <div *ngIf="activeTab === 'metadata'" class="space-y-4">
+        <!-- Discovered From -->
+        <div
+          *ngIf="selectedFile.discoveredFrom"
+          class="p-3 bg-purple-900/20 border border-purple-700 rounded space-y-1"
+        >
+          <p class="text-xs font-semibold text-purple-300">
+            📍 Discovered From:
+          </p>
+          <button
+            class="text-sm text-orange-400 hover:text-orange-300 underline cursor-pointer break-all text-left"
+            (click)="selectFile(selectedFile.discoveredFrom)"
+            title="Click to view source file"
+          >
+            {{ selectedFile.discoveredFrom }}
+          </button>
+        </div>
+
+        <!-- File Metadata -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+              >Status:</span
+            >
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium"
+              [ngClass]="{
+                'bg-green-900 text-green-300':
+                  selectedFile.status === 'success',
+                'bg-orange-900 text-orange-300':
+                  selectedFile.status === 'access-denied' ||
+                  selectedFile.status === 'not-found',
+                'bg-red-900 text-red-300': selectedFile.status === 'error'
+              }"
+              >{{ selectedFile.status }}</span
+            >
+          </div>
+          <div
+            class="flex items-center gap-2 text-sm"
+            *ngIf="selectedFile.status === 'success'"
+          >
+            <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+              >Type:</span
+            >
+            <span class="text-gray-200">{{ selectedFile.fileType }}</span>
+          </div>
+          <div
+            class="flex items-center gap-2 text-sm"
+            *ngIf="selectedFile.status === 'success'"
+          >
+            <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+              >Size:</span
+            >
+            <span class="text-gray-200">{{
+              formatSize(selectedFile.size)
+            }}</span>
+          </div>
+          <div
+            class="flex items-center gap-2 text-sm"
+            *ngIf="selectedFile.magicBytes"
+          >
+            <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+              >Magic Bytes:</span
+            >
+            <span
+              class="font-mono text-xs bg-gray-900 border border-gray-700 px-2 py-1 rounded text-gray-200"
+              >{{ selectedFile.magicBytes }}</span
+            >
+          </div>
+          <div
+            class="flex items-center gap-2 text-sm"
+            *ngIf="selectedFile.confidence"
+          >
+            <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+              >Confidence:</span
+            >
+            <span class="text-gray-200"
+              >{{ (selectedFile.confidence * 100).toFixed(1) }}%</span
+            >
+          </div>
+          <div
+            class="flex items-center gap-2 text-sm"
+            *ngIf="selectedFile.error"
+          >
+            <span class="font-semibold text-gray-400 w-24 flex-shrink-0"
+              >Error:</span
+            >
+            <span class="text-red-400">{{ selectedFile.error }}</span>
+          </div>
+        </div>
+
+        <!-- Extracted Paths -->
+        <div
+          *ngIf="
+            selectedFile.extractedPaths.length > 0 ||
+            selectedFile.ignoredPaths?.length
+          "
+          class="space-y-2"
+        >
+          <h4 class="text-sm font-bold text-purple-200">
+            🔗 Extracted Paths ({{ selectedFile.extractedPaths.length
+            }}<span
+              *ngIf="selectedFile.ignoredPaths?.length"
+              class="text-gray-400"
+              >, {{ selectedFile.ignoredPaths?.length }} ignored</span
+            >)
+          </h4>
+          <div *ngIf="selectedFile.extractedPaths.length > 0" class="space-y-1">
+            <div
+              *ngFor="let path of selectedFile.extractedPaths"
+              class="flex items-center justify-between gap-2 px-2 py-1 bg-customGray border border-green-700 rounded text-xs break-all"
+            >
+              <span class="text-gray-300">{{ path }}</span>
+              <button
+                class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors flex-shrink-0"
+                (click)="copyToClipboard(path)"
+                title="Copy"
+              >
+                📋
+              </button>
+            </div>
+          </div>
+          <div *ngIf="selectedFile.ignoredPaths?.length" class="space-y-1 mt-2">
+            <p class="text-xs text-gray-400 italic">
+              ⚠️ Already in queue/scanned:
+            </p>
+            <div
+              *ngFor="let path of selectedFile.ignoredPaths"
+              class="flex items-center justify-between gap-2 px-2 py-1 bg-customGray border border-gray-600 rounded text-xs break-all opacity-60"
+            >
+              <span class="text-gray-400">{{ path }}</span>
+              <button
+                class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors flex-shrink-0"
+                (click)="copyToClipboard(path)"
+                title="Copy"
+              >
+                📋
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

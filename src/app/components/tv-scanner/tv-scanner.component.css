@@ -1,0 +1,22 @@
+/* Hide scrollbar globally for body/html */
+:host ::ng-deep body,
+:host ::ng-deep html {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow-y: auto !important;
+}
+:host ::ng-deep body::-webkit-scrollbar,
+:host ::ng-deep html::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Hide scrollbar for component */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Screensaver animations - breathe and blur effects (applied in template) */

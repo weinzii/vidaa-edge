@@ -1,0 +1,27 @@
+/* Override global scrollbar hiding - make them visible in file-explorer */
+:host * {
+  scrollbar-width: thin !important; /* Firefox */
+  scrollbar-color: #94a3b8 #e2e8f0 !important;
+  -ms-overflow-style: auto !important; /* IE and Edge */
+}
+
+:host *::-webkit-scrollbar {
+  display: block !important; /* Chrome, Safari, Opera */
+  width: 10px !important;
+  height: 10px !important;
+}
+
+:host *::-webkit-scrollbar-track {
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+}
+
+:host *::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important;
+  border-radius: 4px !important;
+  border: 2px solid #e2e8f0 !important;
+}
+
+:host *::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
+}

@@ -1,0 +1,124 @@
+<!-- Function Execution Modal - uses app-code-modal wrapper -->
+<div *ngIf="isOpen && selectedFunction" class="space-y-4">
+  <!-- Source Code Display -->
+  <div *ngIf="selectedFunction.sourceCode">
+    <div class="block text-sm font-semibold text-gray-300 mb-2">
+      Source Code:
+    </div>
+    <pre
+      class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-x-auto max-h-32 text-gray-300"
+      >{{ selectedFunction.sourceCode }}</pre
+    >
+  </div>
+
+  <!-- Parameters -->
+  <div
+    *ngIf="
+      selectedFunction.parameters && selectedFunction.parameters.length > 0
+    "
+  >
+    <div class="block text-sm font-semibold text-gray-300 mb-2">
+      Parameters:
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div *ngFor="let param of selectedFunction.parameters; let i = index">
+        <label
+          [for]="'modal-param-' + i"
+          class="block mb-1 text-sm text-gray-400"
+          >{{ param }}</label
+        >
+        <input
+          [id]="'modal-param-' + i"
+          type="text"
+          [ngModel]="parameterValues[i]"
+          (ngModelChange)="onParameterChange(i, $event)"
+          class="w-full p-2 bg-customGray border border-purple-900 rounded text-gray-200 text-sm focus:outline-none focus:border-orange-500"
+          [placeholder]="getParameterHint(param)"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- No Parameters Info -->
+  <div
+    *ngIf="
+      !selectedFunction.parameters || selectedFunction.parameters.length === 0
+    "
+    class="text-sm text-gray-400 italic"
+  >
+    This function has no parameters.
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex gap-3">
+    <button
+      (click)="onExecute()"
+      [disabled]="isExecuting"
+      class="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+    >
+      {{ isExecuting ? '⏳ Executing...' : '▶️ Execute' }}
+    </button>
+    <button
+      (click)="onClear()"
+      [disabled]="isExecuting"
+      class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed"
+    >
+      🔄 Clear
+    </button>
+  </div>
+
+  <!-- Execution Result -->
+  <div *ngIf="executionResult !== null">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-sm font-semibold text-orange-400">📊 Result:</div>
+      <div class="flex gap-2">
+        <button
+          (click)="onCopyResult()"
+          class="text-xs text-gray-400 hover:text-orange-400 transition-colors px-2 py-1 rounded hover:bg-purple-900/30"
+          title="Copy to clipboard"
+        >
+          📋 Copy
+        </button>
+      </div>
+    </div>
+    <div class="relative">
+      <button
+        *ngIf="shouldShowExpandButton(executionResult)"
+        (click)="onToggleResultExpansion()"
+        class="absolute top-2 right-2 text-gray-400 hover:text-orange-400 transition-colors p-1 bg-customGray-light rounded z-10"
+        [title]="
+          isExecutionResultExpanded ? 'Collapse result' : 'Expand result'
+        "
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            *ngIf="!isExecutionResultExpanded"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+          />
+          <path
+            *ngIf="isExecutionResultExpanded"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
+          />
+        </svg>
+      </button>
+      <pre
+        class="bg-customGray p-3 rounded border border-purple-900 font-mono text-xs overflow-y-auto text-gray-300"
+        [class.max-h-48]="!isExecutionResultExpanded"
+        [class.max-h-96]="isExecutionResultExpanded"
+        >{{ formatResult(executionResult) }}</pre
+      >
+    </div>
+  </div>
+</div>

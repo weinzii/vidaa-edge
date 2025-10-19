@@ -1,0 +1,5 @@
+<!-- TV Mode: Show TV Scanner Component -->
+<app-tv-scanner *ngIf="isTvMode"></app-tv-scanner>
+
+<!-- Controller Mode: Show Controller Console Component -->
+<app-controller-console *ngIf="!isTvMode"></app-controller-console>

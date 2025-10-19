@@ -1,0 +1,59 @@
+<div class="flex flex-col h-full">
+  <div
+    *ngIf="results.length === 0"
+    class="flex-1 flex flex-col items-center justify-center text-gray-500"
+  >
+    <div class="text-6xl mb-4">📂</div>
+    <p class="text-sm">No files to display</p>
+  </div>
+
+  <div *ngIf="results.length > 0" class="flex-1 min-h-0 overflow-y-auto">
+    <div
+      *ngFor="let result of results"
+      [attr.data-path]="result.path"
+      class="flex items-start gap-2 px-4 py-2 border-b border-gray-700 hover:bg-customGray cursor-pointer transition-colors"
+      [class.bg-customGray]="selectedFile === result"
+      [class.border-l-4]="selectedFile === result"
+      [class.border-l-orange-500]="selectedFile === result"
+      (click)="selectFile(result)"
+      (keyup.enter)="selectFile(result)"
+      (keyup.space)="selectFile(result)"
+      tabindex="0"
+      role="button"
+    >
+      <span class="text-xl flex-shrink-0">{{ getFileIcon(result) }}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm text-gray-200 break-all">{{ result.path }}</div>
+        <div
+          class="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap"
+        >
+          <span
+            class="px-1.5 py-0.5 rounded font-medium"
+            [ngClass]="{
+              'bg-green-900 text-green-300': result.status === 'success',
+              'bg-orange-900 text-orange-300':
+                result.status === 'access-denied' ||
+                result.status === 'not-found',
+              'bg-red-900 text-red-300': result.status === 'error'
+            }"
+            >{{ result.status }}</span
+          >
+          <span *ngIf="result.status === 'success'">
+            • {{ result.isBinary ? 'Binary' : 'Text' }} •
+            {{ formatSize(result.size) }}
+          </span>
+          <span *ngIf="result.extractedPaths.length > 0">
+            • 🔗 {{ result.extractedPaths.length }} paths
+          </span>
+          <span
+            *ngIf="result.discoveredFrom"
+            class="text-purple-400"
+            title="Discovered from {{ result.discoveredFrom }}"
+          >
+            • 📍 from file
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

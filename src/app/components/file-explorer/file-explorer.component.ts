@@ -13,12 +13,9 @@ import {
   VariableValue,
 } from '../../models/file-exploration';
 import {
-  ResumeDialogData,
-  ErrorInfo,
-} from '../../models/scan-persistence.model';
-import {
   SessionMetadata,
   LoadedSession,
+  ErrorInfo,
 } from '../../models/session-storage.model';
 import { shouldExcludeVariableSource } from '../../config/exploration-paths.config';
 import { FileListComponent } from './file-list/file-list.component';
@@ -26,7 +23,6 @@ import { FileTreeComponent } from './file-tree/file-tree.component';
 import { FileDetailsComponent } from './file-details/file-details.component';
 import { VariablesViewComponent } from './variables-view/variables-view.component';
 import { ErrorBannerComponent } from './error-banner/error-banner.component';
-import { ResumeScanDialogComponent } from './resume-scan-dialog/resume-scan-dialog.component';
 import { SessionManagerComponent } from '../session-manager/session-manager.component';
 import { CanComponentDeactivate } from '../../guards/can-deactivate-file-explorer.guard';
 
@@ -47,7 +43,6 @@ interface DeferredPathEntry {
     FileDetailsComponent,
     VariablesViewComponent,
     ErrorBannerComponent,
-    ResumeScanDialogComponent,
     SessionManagerComponent,
   ],
   templateUrl: './file-explorer.component.html',
@@ -93,9 +88,7 @@ export class FileExplorerComponent
   // Auto-scroll
   autoScrollEnabled = true;
 
-  // Resume system
-  showResumeDialog = false;
-  resumeDialogData: ResumeDialogData | undefined = undefined;
+  // Error banner
   showErrorBanner = false;
   errorInfo: ErrorInfo | undefined = undefined;
 
@@ -118,9 +111,6 @@ export class FileExplorerComponent
   ) {}
 
   ngOnInit(): void {
-    // ✅ Check for persisted session on startup
-    this.checkForPersistedSession();
-
     // Subscribe to session updates
     this.explorationService.session$
       .pipe(takeUntil(this.destroy$))
@@ -174,19 +164,6 @@ export class FileExplorerComponent
 
     // ✅ Add beforeunload handler to save on browser close
     window.addEventListener('beforeunload', this.handleBeforeUnload);
-  }
-
-  /**
-   * Check if there's a persisted session and show resume dialog
-   */
-  private checkForPersistedSession(): void {
-    if (this.explorationService.hasPersistedSession()) {
-      const data = this.explorationService.getResumeDialogData();
-      if (data) {
-        this.resumeDialogData = data;
-        this.showResumeDialog = true;
-      }
-    }
   }
 
   /**
@@ -815,47 +792,6 @@ export class FileExplorerComponent
 
   get generatedCount(): number {
     return this.results.filter((r) => r.discoveryMethod === 'generated').length;
-  }
-
-  // Resume Dialog Handlers
-  handleResumeAction(action: string): void {
-    this.showResumeDialog = false;
-
-    switch (action) {
-      case 'resume':
-        // Resume from persisted session and continue scanning
-        if (this.explorationService.resumeFromPersistedSession()) {
-          this.loadAllResultsFromSession();
-          this.applyFilters();
-          // ✅ Clear error banner when resuming
-          this.showErrorBanner = false;
-          this.errorInfo = undefined;
-          // ✅ Automatically resume scanning after loading
-          this.explorationService.resumeExploration();
-        }
-        break;
-
-      case 'restart':
-        // Clear persisted session and start fresh
-        this.explorationService.clearPersistedSession();
-        this.startScan();
-        break;
-
-      case 'view':
-        // Just load results without resuming scan
-        if (this.explorationService.resumeFromPersistedSession()) {
-          this.loadAllResultsFromSession();
-          this.applyFilters();
-          // Stop the session immediately (view only mode)
-          this.explorationService.stopExploration();
-        }
-        break;
-
-      case 'discard':
-        // Clear persisted session
-        this.explorationService.clearPersistedSession();
-        break;
-    }
   }
 
   // Error Banner Handlers

@@ -5,8 +5,8 @@ import {
   ErrorAnalysis,
   ErrorEvent,
   ErrorInfo,
-  SCAN_PERSISTENCE_CONFIG,
-} from '../../models/scan-persistence.model';
+  ERROR_DETECTION_CONFIG,
+} from '../../models/session-storage.model';
 
 /**
  * Service for detecting and analyzing TV API errors
@@ -43,11 +43,11 @@ export class TvErrorDetectorService {
 
     // Calculate error rate
     const errorRate =
-      this.errorHistory.length / (SCAN_PERSISTENCE_CONFIG.ERROR_WINDOW / 1000);
+      this.errorHistory.length / (ERROR_DETECTION_CONFIG.ERROR_WINDOW / 1000);
 
     // Determine if we should pause
     const shouldPause =
-      this.consecutiveErrorCount >= SCAN_PERSISTENCE_CONFIG.ERROR_THRESHOLD;
+      this.consecutiveErrorCount >= ERROR_DETECTION_CONFIG.ERROR_THRESHOLD;
 
     // Get recommendation
     const recommendation = this.getRecommendation(
@@ -163,7 +163,7 @@ export class TvErrorDetectorService {
    * Clean errors outside the time window
    */
   private cleanOldErrors(): void {
-    const cutoff = Date.now() - SCAN_PERSISTENCE_CONFIG.ERROR_WINDOW;
+    const cutoff = Date.now() - ERROR_DETECTION_CONFIG.ERROR_WINDOW;
     const oldLength = this.errorHistory.length;
 
     this.errorHistory = this.errorHistory.filter((e) => e.timestamp >= cutoff);
@@ -193,7 +193,7 @@ export class TvErrorDetectorService {
       recentErrors: this.errorHistory.length,
       errorRate:
         this.errorHistory.length /
-        (SCAN_PERSISTENCE_CONFIG.ERROR_WINDOW / 1000),
+        (ERROR_DETECTION_CONFIG.ERROR_WINDOW / 1000),
     };
   }
 }

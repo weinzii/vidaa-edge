@@ -14,6 +14,92 @@ import {
 } from '../services/file-exploration/variable-resolver.service';
 
 /**
+ * Error types that can occur during scanning
+ */
+export type ErrorType =
+  | 'timeout'
+  | 'network'
+  | 'api_failure'
+  | 'tv_disconnected'
+  | 'tv_overload'
+  | 'unknown';
+
+/**
+ * Error information for a scan session
+ */
+export interface ErrorInfo {
+  lastError: string;
+  errorCount: number;
+  consecutiveErrors: number;
+  lastErrorTime: string; // ISO timestamp
+  errorType: ErrorType;
+  recommendation: string;
+}
+
+/**
+ * Discovery method statistics
+ */
+export interface DiscoveryStats {
+  knownListCount: number;
+  extractedCount: number;
+  generatedCount: number;
+}
+
+/**
+ * Resume dialog data for UI
+ */
+export interface ResumeDialogData {
+  sessionId: string;
+  startTime: Date;
+  lastSaveTime: Date;
+  progress: {
+    scanned: number;
+    total: number;
+    percentage: number;
+  };
+  status: string;
+  lastError?: string;
+  recommendation?: string;
+  statistics: {
+    success: number;
+    failed: number;
+    queued: number;
+    binary: number;
+    text: number;
+  };
+  discoveryStats: DiscoveryStats;
+}
+
+/**
+ * Error analysis result
+ */
+export interface ErrorAnalysis {
+  type: ErrorType;
+  shouldPause: boolean; // Should we auto-pause the scan?
+  consecutiveCount: number;
+  errorRate: number; // Errors per second
+  recommendation: string;
+}
+
+/**
+ * Error event for tracking
+ */
+export interface ErrorEvent {
+  type: ErrorType;
+  timestamp: number;
+  message: string;
+}
+
+/**
+ * Configuration constants for error detection
+ */
+export const ERROR_DETECTION_CONFIG = {
+  // Error detection
+  ERROR_THRESHOLD: 3, // Consecutive errors to trigger auto-pause
+  ERROR_WINDOW: 60000, // 60 seconds error window
+} as const;
+
+/**
  * Session status types
  */
 export type SessionStatus =

@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { trigger, style, transition, animate } from '@angular/animations';
-import { ErrorInfo } from '../../../models/scan-persistence.model';
+import { ErrorInfo } from '../../../models/session-storage.model';
 
 /**
  * Error banner component

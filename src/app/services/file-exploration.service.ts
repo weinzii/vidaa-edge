@@ -9,7 +9,6 @@ import { PathExtractorService } from './file-exploration/path-extractor.service'
 import { FileContentAnalyzerService } from './file-exploration/file-content-analyzer.service';
 import { FileScannerService } from './file-exploration/file-scanner.service';
 import { FileTreeBuilderService } from './file-exploration/file-tree-builder.service';
-import { ScanPersistenceService } from './file-exploration/scan-persistence.service';
 import { TvErrorDetectorService } from './file-exploration/tv-error-detector.service';
 import { ScanStorageService } from './scan-storage.service';
 import {
@@ -66,7 +65,6 @@ export class FileExplorationService {
     private contentAnalyzer: FileContentAnalyzerService,
     private fileScanner: FileScannerService,
     private treeBuilder: FileTreeBuilderService,
-    private scanPersistence: ScanPersistenceService,
     private errorDetector: TvErrorDetectorService,
     private scanStorage: ScanStorageService
   ) {}
@@ -585,16 +583,8 @@ export class FileExplorationService {
               this.session.status = 'paused';
               this.isScanning = false;
 
-              // ✅ Save session to server on auto-pause
               this.saveSessionToServer();
 
-              // ✅ Old LocalStorage backup (deprecated - using dev-server now)
-              // this.scanPersistence.saveSession(
-              //   this.session,
-              //   this.errorDetector.getErrorInfo()
-              // );
-
-              // Emit updated session
               this.sessionSubject.next(this.session);
             }
 
@@ -962,140 +952,6 @@ export class FileExplorationService {
     return this.treeBuilder.buildFileTree(
       results || (this.session ? Array.from(this.session.results.values()) : [])
     );
-  }
-
-  /**
-   * Check if there's a persisted session that can be resumed
-   */
-  public hasPersistedSession(): boolean {
-    const loaded = this.scanPersistence.loadSession();
-    return loaded !== null;
-  }
-
-  /**
-   * Get resume dialog data if a persisted session exists
-   */
-  public getResumeDialogData() {
-    return this.scanPersistence.getResumeDialogData();
-  }
-
-  /**
-   * Resume exploration from a persisted session
-   */
-  public resumeFromPersistedSession(): boolean {
-    const persistedSession = this.scanPersistence.loadSession();
-
-    if (!persistedSession) {
-      this.consoleService.error(
-        'No persisted session found',
-        undefined,
-        'FileExploration'
-      );
-      return false;
-    }
-
-    // Stop current session if running
-    if (this.isScanning) {
-      this.stopExploration();
-    }
-
-    // Restore session from persisted data
-    this.session = this.scanPersistence.deserializeSession(persistedSession);
-
-    if (!this.session) {
-      this.consoleService.error(
-        'Failed to deserialize session',
-        undefined,
-        'FileExploration'
-      );
-      return false;
-    }
-
-    // Set status to paused (user can resume manually)
-    this.session.status = 'paused';
-    this.isScanning = false;
-    this.filesSinceLastSave = 0;
-
-    // ✅ Initialize variable resolver session
-    this.variableResolver.initSession(this.session.id);
-
-    // ✅ Restore variables if they exist
-    if (this.session.variables && this.session.variables.size > 0) {
-      const variablesMap = this.variableResolver.getVariables(this.session.id);
-
-      // Restore all variables from persisted session
-      for (const [varName, values] of this.session.variables.entries()) {
-        variablesMap.set(varName, values);
-      }
-
-      this.consoleService.info(
-        `Restored ${this.session.variables.size} variables from persisted session`,
-        'FileExploration'
-      );
-    }
-
-    // ✅ Restore deferred paths if they exist
-    if (this.session.deferredPaths && this.session.deferredPaths.length > 0) {
-      this.variableResolver.restoreDeferredPaths(
-        this.session.id,
-        this.session.deferredPaths
-      );
-
-      this.consoleService.info(
-        `Restored ${this.session.deferredPaths.length} deferred paths from persisted session`,
-        'FileExploration'
-      );
-    }
-
-    // Error files and placeholders are already in the queue automatically
-    // (they were never added to the scanned set because result.status === 'error' or isPlaceholder)
-    // Count how many errors/placeholders are in the queue for informational purposes
-    const errorFilesInQueue = Array.from(this.session.results.values()).filter(
-      (r) =>
-        r.status === 'error' &&
-        this.session &&
-        this.session.queue.includes(r.path)
-    ).length;
-
-    const placeholdersInQueue = Array.from(
-      this.session.results.values()
-    ).filter(
-      (r) =>
-        r.isPlaceholder && this.session && this.session.queue.includes(r.path)
-    ).length;
-
-    if (errorFilesInQueue > 0) {
-      this.consoleService.info(
-        `${errorFilesInQueue} failed files will be retried automatically (not in scanned set)`,
-        'FileExploration'
-      );
-    }
-
-    if (placeholdersInQueue > 0) {
-      this.consoleService.info(
-        `${placeholdersInQueue} placeholder files (deferred paths) will be analyzed when variables are resolved`,
-        'FileExploration'
-      );
-    }
-
-    // Emit session
-    this.sessionSubject.next(this.session);
-    this.updateStats();
-
-    this.consoleService.info(
-      `Resumed session ${this.session.id} with ${this.session.results.size} results and ${this.session.queue.length} queued paths`,
-      'FileExploration'
-    );
-
-    return true;
-  }
-
-  /**
-   * Clear persisted session from storage
-   */
-  public clearPersistedSession(): void {
-    this.scanPersistence.clearSession();
-    this.consoleService.info('Cleared persisted session', 'FileExploration');
   }
 
   /**

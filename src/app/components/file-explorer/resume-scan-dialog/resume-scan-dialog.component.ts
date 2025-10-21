@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ResumeDialogData } from '../../../models/scan-persistence.model';
+import { ResumeDialogData } from '../../../models/session-storage.model';
 
 export type ResumeAction = 'resume' | 'restart' | 'view' | 'discard';
 

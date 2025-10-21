@@ -192,8 +192,7 @@ export class TvErrorDetectorService {
       consecutiveErrors: this.consecutiveErrorCount,
       recentErrors: this.errorHistory.length,
       errorRate:
-        this.errorHistory.length /
-        (ERROR_DETECTION_CONFIG.ERROR_WINDOW / 1000),
+        this.errorHistory.length / (ERROR_DETECTION_CONFIG.ERROR_WINDOW / 1000),
     };
   }
 }

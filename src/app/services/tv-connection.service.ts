@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, interval } from 'rxjs';
+import { BehaviorSubject, Observable, interval, Subscription } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { ConsoleService } from './console.service';
 
@@ -19,7 +19,7 @@ export interface TVConnectionInfo {
 @Injectable({
   providedIn: 'root',
 })
-export class TvConnectionService {
+export class TvConnectionService implements OnDestroy {
   private tvConnectionSubject = new BehaviorSubject<TVConnectionInfo>({
     connected: false,
     lastSeen: null,
@@ -29,6 +29,8 @@ export class TvConnectionService {
   });
 
   public tvConnection$ = this.tvConnectionSubject.asObservable();
+
+  private monitoringSubscription?: Subscription;
 
   constructor(
     private http: HttpClient,
@@ -42,10 +44,23 @@ export class TvConnectionService {
    * Checks connection every 10 seconds.
    */
   private startConnectionMonitoring(): void {
-    interval(10000).subscribe(() => {
+    this.monitoringSubscription = interval(10000).subscribe(() => {
       // Connection status is updated by function service
       // This is a placeholder for future connection checks
     });
+  }
+
+  /**
+   * Cleanup subscriptions when service is destroyed
+   */
+  ngOnDestroy(): void {
+    if (this.monitoringSubscription) {
+      this.monitoringSubscription.unsubscribe();
+      this.consoleService.debug(
+        'Connection monitoring stopped',
+        'TvConnection'
+      );
+    }
   }
 
   /**

@@ -4,7 +4,6 @@ import { TvConnectionService } from '../../services/tv-connection.service';
 import { TvFunctionService } from '../../services/tv-function.service';
 import {
   TvPollingService,
-  RemoteCommandCheck,
   RemoteCommand,
 } from '../../services/tv-polling.service';
 import { FunctionResult } from '../../services/tv-command.service';
@@ -68,10 +67,23 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     if (this.animationUpdateInterval) {
       clearInterval(this.animationUpdateInterval);
     }
+
+    // Restore scrollbars on cleanup
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
   }
 
   // SCREENSAVER METHODS
   private startScreensaverTimer(): void {
+    this.resetScreensaverTimer();
+  }
+
+  /**
+   * Called on any user activity (mouse move, click, key press, touch)
+   */
+  onUserActivity(): void {
     this.resetScreensaverTimer();
   }
 
@@ -84,6 +96,13 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     // Wake up if screensaver is active
     if (this.isScreensaverActive) {
       this.isScreensaverActive = false;
+
+      // Restore scrollbars on body and html
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+      }
+
       // Stop animation updates
       if (this.animationUpdateInterval) {
         clearInterval(this.animationUpdateInterval);
@@ -98,7 +117,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     // Set new timer (5 seconds)
     this.screensaverTimeout = setTimeout(() => {
       this.activateScreensaver();
-    }, 5000);
+    }, 10000);
   }
 
   /**
@@ -113,6 +132,13 @@ export class TvScannerComponent implements OnInit, OnDestroy {
 
     // Activate screensaver
     this.isScreensaverActive = true;
+
+    // Hide scrollbars on body and html
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    }
+
     this.cdr.detectChanges();
 
     // Start continuous animation updates every 20 seconds
@@ -840,33 +866,57 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     this.isRemoteControlEnabled = true;
     this.remoteControlStatus = 'ACTIVE';
     this.appendTvStatus(
-      '📡 Remote Control enabled - Listening for PC commands...',
+      '📡 Remote Control enabled - Listening for PC commands (batch mode)...',
       'success'
     );
 
-    // Poll for commands every 3 seconds
+    // Poll for commands every 3 seconds (batch mode for parallel execution)
     const pollingSubscription = interval(3000).subscribe(() => {
-      this.tvPollingService.checkForCommands().subscribe({
-        next: (commandData: RemoteCommandCheck) => {
-          if (commandData.hasCommand && commandData.command) {
-            // Wake up from screensaver on command received
+      this.tvPollingService.checkForCommandsBatch(10).subscribe({
+        next: (batchData) => {
+          if (
+            batchData.hasCommands &&
+            batchData.commands &&
+            batchData.commands.length > 0
+          ) {
+            // Wake up from screensaver on commands received
             this.resetScreensaverTimer();
 
             this.appendTvStatus(
-              `📥 Command received: ${commandData.command.function}`,
+              `📥 Batch received: ${batchData.commands.length} commands (${
+                batchData.remainingInQueue || 0
+              } remaining)`,
               'info'
             );
-            this.lastCommand = `${commandData.command.function}()`;
-            this.appendTvStatus(
-              `⚡ Executing: ${commandData.command.function}`,
-              'info'
-            );
-            this.executeRemoteCommand(commandData.command);
+
+            // Execute all commands in parallel
+            const commandPromises = batchData.commands.map((command) => {
+              this.lastCommand = `${command.function}()`;
+              return this.executeRemoteCommandAsync(command);
+            });
+
+            // Wait for all commands to complete
+            Promise.all(commandPromises)
+              .then(() => {
+                this.appendTvStatus(
+                  `✅ Batch completed: ${
+                    batchData.commands?.length || 0
+                  } commands executed`,
+                  'success'
+                );
+              })
+              .catch((error) => {
+                this.consoleService.error(
+                  'Batch execution error',
+                  error,
+                  'TVScanner'
+                );
+              });
           }
         },
         error: () => {
           this.consoleService.debug(
-            'Command check polling error (ignored)',
+            'Batch command check polling error (ignored)',
             'TVScanner'
           );
           // Ignore polling errors - don't spam the UI
@@ -877,9 +927,27 @@ export class TvScannerComponent implements OnInit, OnDestroy {
     this.subscriptions.add(pollingSubscription);
   }
 
-  private executeRemoteCommand(command: RemoteCommand): void {
+  private async executeRemoteCommandAsync(
+    command: RemoteCommand
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      this.executeRemoteCommand(command);
+      resolve();
+    });
+  }
+
+  /**
+   * Execute remote command with retry logic for transient failures
+   */
+  private executeRemoteCommand(command: RemoteCommand, retryCount = 0): void {
+    const MAX_RETRIES = 2; // Total 3 attempts (initial + 2 retries)
+    const RETRY_DELAY_MS = 1000; // 1 second between retries
+
     // Activity detected - reset screensaver
     this.resetScreensaverTimer();
+
+    // Start timing - measure TV processing time
+    const startTime = performance.now();
 
     const result = {
       commandId: command.id,
@@ -889,6 +957,7 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       data: null as unknown,
       error: null as string | null,
       timestamp: new Date().toISOString(),
+      tvProcessingTimeMs: 0, // Will be set in finally block
     };
 
     try {
@@ -1010,20 +1079,65 @@ export class TvScannerComponent implements OnInit, OnDestroy {
         error instanceof Error ? error.message : String(error);
       result.error = errorMessage;
 
+      // Check if error is retryable
+      const isRetryable = this.isRetryableError(errorMessage);
+
+      if (isRetryable && retryCount < MAX_RETRIES) {
+        // Log retry attempt
+        this.appendTvStatus(
+          `🔄 RETRY ${retryCount + 1}/${MAX_RETRIES}: ${command.function}()\n` +
+            `Error: ${errorMessage}\n` +
+            `Retrying in ${RETRY_DELAY_MS}ms...`,
+          'info'
+        );
+
+        // Schedule retry after delay
+        setTimeout(() => {
+          this.executeRemoteCommand(command, retryCount + 1);
+        }, RETRY_DELAY_MS);
+
+        return; // Don't send result yet, wait for retry
+      }
+
+      // Final failure or non-retryable error
+      const retryInfo = retryCount > 0 ? ` (after ${retryCount} retries)` : '';
       this.appendTvStatus(
-        `📡 Remote: ${command.function}() → Error: ${result.error}`,
+        `❌ Remote: ${command.function}() → Error: ${result.error}${retryInfo}`,
         'error'
       );
-    } finally {
-      // ALWAYS send result back, even if there was an error
-      // This prevents the PC from waiting forever
-      // Cast result.data from unknown to FunctionResult for type safety
-      const typedResult = {
-        ...result,
-        data: result.data as FunctionResult,
-      };
-      this.sendResultToServer(command.id, typedResult);
     }
+
+    // Send result to PC (skipped if retry in progress)
+    const endTime = performance.now();
+    result.tvProcessingTimeMs = Math.round(endTime - startTime);
+
+    const typedResult = {
+      ...result,
+      data: result.data as FunctionResult,
+    };
+    this.sendResultToServer(command.id, typedResult);
+  }
+
+  /**
+   * Check if an error is retryable (transient failure)
+   * @param errorMessage Error message to check
+   * @returns true if error should be retried
+   */
+  private isRetryableError(errorMessage: string): boolean {
+    const retryablePatterns = [
+      /Failed to load/i, // Network errors
+      /Failed to execute.*XMLHttpRequest/i, // XHR errors
+      /Network.*failed/i,
+      /Connection.*refused/i,
+      /Timeout/i,
+      /Service.*unavailable/i,
+      /ECONNREFUSED/i,
+      /ETIMEDOUT/i,
+      /temporarily unavailable/i,
+      /Service not ready/i,
+    ];
+
+    return retryablePatterns.some((pattern) => pattern.test(errorMessage));
   }
 
   private sendResultToServer(
@@ -1036,11 +1150,15 @@ export class TvScannerComponent implements OnInit, OnDestroy {
       data: FunctionResult;
       error: string | null;
       timestamp: string;
+      tvProcessingTimeMs: number;
     }
   ): void {
     this.tvPollingService.receiveCommandResult(commandId, result).subscribe({
       next: () => {
-        this.appendTvStatus(`✅ Result sent back to PC`, 'success');
+        this.appendTvStatus(
+          `✅ Result sent back to PC (TV processing: ${result.tvProcessingTimeMs}ms)`,
+          'success'
+        );
       },
       error: (error: Error) => {
         this.consoleService.error('Failed to send result', error, 'TVScanner');

@@ -175,6 +175,33 @@
     ></app-custom-code-modal>
   </app-code-modal>
 
+  <!-- Quick File Read Section -->
+  <div class="max-w-4xl mx-auto mb-6" *ngIf="availableFunctions.length > 0">
+    <div class="bg-customGray-light rounded-lg p-4 border border-purple-900">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="text-lg">📄</span>
+        <h3 class="text-orange-500 font-bold">Quick File Read</h3>
+      </div>
+      <div class="flex gap-2">
+        <input
+          type="text"
+          [(ngModel)]="quickReadPath"
+          (keydown.enter)="onQuickFileRead()"
+          placeholder="Enter absolute path (e.g., /etc/profile)"
+          class="flex-1 px-3 py-2 bg-customGray border border-gray-700 rounded text-gray-200 focus:outline-none focus:border-purple-500"
+        />
+        <button
+          (click)="onQuickFileRead()"
+          [disabled]="!quickReadPath.trim() || !tvConnection.connected"
+          class="px-4 py-2 bg-purple-900 hover:bg-purple-800 text-orange-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Read file"
+        >
+          🔍 Read
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Command History Component -->
   <app-command-history
     [commandHistory]="commandHistory"
@@ -183,6 +210,8 @@
     (historyExpansionToggled)="onHistoryExpansionToggled($event)"
     (historyResultExpansionToggled)="onHistoryResultExpansionToggled($event)"
     (historyItemDeleted)="onHistoryItemDeleted($event)"
+    (historyItemReused)="onHistoryItemReused($event)"
+    (resultCopied)="copyResultToClipboard($event)"
   ></app-command-history>
 
   <!-- Fixed Scroll to Top Button -->

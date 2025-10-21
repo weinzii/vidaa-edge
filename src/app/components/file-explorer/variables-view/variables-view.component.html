@@ -1,0 +1,251 @@
+<div class="h-full flex flex-col bg-customGray">
+  <!-- Split View: Variables | Deferred Paths -->
+  <div class="flex-1 flex gap-4 p-4 overflow-hidden">
+    <!-- Left Panel: Variables -->
+    <div
+      class="flex-1 flex flex-col bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
+    >
+      <!-- Variables Header -->
+      <div
+        class="flex-shrink-0 bg-purple-900 px-4 py-3 border-b border-purple-700"
+      >
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-semibold text-purple-200">
+            🔤 Shell Variables
+          </h3>
+          <span class="text-xs text-gray-400">
+            {{ filteredVariables.length }} / {{ variableEntries.length }}
+          </span>
+        </div>
+
+        <!-- Search Input -->
+        <div class="relative">
+          <input
+            type="text"
+            [(ngModel)]="variableSearchTerm"
+            (ngModelChange)="applyFilters()"
+            placeholder="Search variables or values..."
+            class="w-full px-3 py-1.5 pr-8 text-sm bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400"
+          />
+          <button
+            *ngIf="variableSearchTerm"
+            (click)="variableSearchTerm = ''; applyFilters()"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+            title="Clear search"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Variables List -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <div
+          *ngIf="filteredVariables.length === 0"
+          class="p-8 text-center text-gray-500"
+        >
+          <div class="text-4xl mb-2">📭</div>
+          <div>No variables found</div>
+        </div>
+
+        <div
+          *ngFor="let variable of filteredVariables"
+          class="border-b border-gray-700"
+        >
+          <!-- Variable Header (Clickable) -->
+          <div
+            (click)="toggleVariable(variable)"
+            (keydown.enter)="toggleVariable(variable)"
+            (keydown.space)="toggleVariable(variable)"
+            tabindex="0"
+            role="button"
+            class="px-4 py-3 hover:bg-gray-750 cursor-pointer transition-colors"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <!-- Expand/Collapse Icon -->
+                  <span class="text-gray-400 text-sm">
+                    {{ variable.expanded ? '▼' : '▶' }}
+                  </span>
+
+                  <!-- Variable Name -->
+                  <code class="text-green-400 font-mono font-semibold">
+                    ${{ variable.name }}
+                  </code>
+
+                  <!-- Value Count Badge -->
+                  <span
+                    class="px-2 py-0.5 text-xs rounded-full"
+                    [ngClass]="{
+                      'bg-purple-900 text-purple-300':
+                        variable.values.length === 1,
+                      'bg-blue-900 text-blue-300': variable.values.length > 1
+                    }"
+                  >
+                    {{ variable.values.length }} value{{
+                      variable.values.length !== 1 ? 's' : ''
+                    }}
+                  </span>
+                </div>
+
+                <!-- Primary Value Preview (when collapsed) -->
+                <div
+                  *ngIf="!variable.expanded && variable.values.length > 0"
+                  class="mt-1 ml-6"
+                >
+                  <code class="text-sm text-gray-300">
+                    {{ variable.values[0].value }}
+                  </code>
+                  <span
+                    *ngIf="variable.values.length > 1"
+                    class="text-xs text-gray-500 ml-2"
+                  >
+                    +{{ variable.values.length - 1 }} more
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Variable Values (when expanded) -->
+          <div *ngIf="variable.expanded" class="bg-gray-850 px-4 py-2">
+            <div
+              *ngFor="let value of variable.values; let i = index"
+              class="py-2 border-t border-gray-700 first:border-t-0"
+            >
+              <div class="flex items-start gap-3">
+                <!-- Confidence Indicator -->
+                <div class="flex-shrink-0 mt-1">
+                  <span
+                    [ngClass]="getConfidenceColor(value.confidence)"
+                    class="text-lg"
+                    [title]="getConfidenceLabel(value.confidence)"
+                  >
+                    {{ getConfidenceIcon(value.confidence) }}
+                  </span>
+                </div>
+
+                <!-- Value Content -->
+                <div class="flex-1 min-w-0">
+                  <code class="text-sm text-gray-200 break-all">
+                    {{ value.value }}
+                  </code>
+
+                  <!-- Source Info -->
+                  <div
+                    class="mt-1 flex items-center gap-2 text-xs text-gray-500"
+                  >
+                    <span>From: {{ value.discoveredIn }}</span>
+                    <span>•</span>
+                    <span>{{ getConfidenceLabel(value.confidence) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Deferred Paths -->
+    <div
+      class="flex-1 flex flex-col bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
+    >
+      <!-- Deferred Paths Header -->
+      <div
+        class="flex-shrink-0 bg-orange-900 px-4 py-3 border-b border-orange-700"
+      >
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-semibold text-orange-200">
+            ⏳ Unresolved Paths
+          </h3>
+          <span class="text-xs text-gray-400">
+            {{ filteredDeferred.length }} / {{ deferredEntries.length }}
+          </span>
+        </div>
+
+        <!-- Search Input -->
+        <div class="relative">
+          <input
+            type="text"
+            [(ngModel)]="deferredSearchTerm"
+            (ngModelChange)="applyFilters()"
+            placeholder="Search templates or missing variables..."
+            class="w-full px-3 py-1.5 pr-8 text-sm bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-white placeholder-gray-400"
+          />
+          <button
+            *ngIf="deferredSearchTerm"
+            (click)="deferredSearchTerm = ''; applyFilters()"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+            title="Clear search"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Deferred Paths List -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <div
+          *ngIf="filteredDeferred.length === 0"
+          class="p-8 text-center text-gray-500"
+        >
+          <div class="text-4xl mb-2">✅</div>
+          <div>All paths resolved!</div>
+        </div>
+
+        <div
+          *ngFor="let deferred of filteredDeferred"
+          class="px-4 py-3 border-b border-gray-700 hover:bg-gray-750 transition-colors"
+        >
+          <!-- Template Path -->
+          <div class="mb-2">
+            <code class="text-sm text-blue-300 font-mono break-all">
+              {{ deferred.template }}
+            </code>
+          </div>
+
+          <!-- Missing Variables -->
+          <div class="flex flex-wrap gap-2 mb-2">
+            <span
+              *ngFor="let missingVar of deferred.missingVars"
+              class="px-2 py-1 text-xs rounded bg-red-900 text-red-300 font-mono"
+            >
+              ${{ missingVar }}
+            </span>
+          </div>
+
+          <!-- Discovery Time -->
+          <div class="text-xs text-gray-500">
+            Discovered: {{ deferred.discoveryTime | date : 'short' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

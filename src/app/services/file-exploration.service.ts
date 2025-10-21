@@ -1,7 +1,17 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { ConsoleService } from './console.service';
-import { TvCommandService } from './tv-command.service';
+import {
+  VariableResolverService,
+  VariableValue,
+} from './file-exploration/variable-resolver.service';
+import { PathExtractorService } from './file-exploration/path-extractor.service';
+import { FileContentAnalyzerService } from './file-exploration/file-content-analyzer.service';
+import { FileScannerService } from './file-exploration/file-scanner.service';
+import { FileTreeBuilderService } from './file-exploration/file-tree-builder.service';
+import { ScanPersistenceService } from './file-exploration/scan-persistence.service';
+import { TvErrorDetectorService } from './file-exploration/tv-error-detector.service';
+import { ScanStorageService } from './scan-storage.service';
 import {
   FileAnalysis,
   ExplorationSession,
@@ -10,11 +20,8 @@ import {
 } from '../models/file-exploration';
 import {
   EXPLORATION_PATHS,
-  PATH_EXTRACTION_PATTERNS,
-  SHELL_VARIABLES,
-  BINARY_SIGNATURES,
   SCAN_CONFIG,
-  COMMON_FILENAMES,
+  shouldExcludeVariableSource,
 } from '../config/exploration-paths.config';
 
 @Injectable({
@@ -23,6 +30,16 @@ import {
 export class FileExplorationService {
   private session: ExplorationSession | null = null;
   private isScanning = false;
+  private filesSinceLastSave = 0; // Track files scanned since last auto-save
+  private isSaving = false; // Prevent concurrent saves
+
+  // Session persistence tracking
+  private currentSessionId: string | null = null;
+  private currentRunId = 1;
+  private sessionStartTime: Date | null = null;
+  private sessionSavedOnce = false; // Track if session has been saved at least once
+  private lastSavedResultCount = 0; // Track how many results were saved last time
+  private readonly AUTO_SAVE_FILE_THRESHOLD = 25; // Save after every 25 files
 
   // Observables
   private sessionSubject = new BehaviorSubject<ExplorationSession | null>(null);
@@ -44,7 +61,14 @@ export class FileExplorationService {
 
   constructor(
     private consoleService: ConsoleService,
-    private tvCommandService: TvCommandService
+    private variableResolver: VariableResolverService,
+    private pathExtractor: PathExtractorService,
+    private contentAnalyzer: FileContentAnalyzerService,
+    private fileScanner: FileScannerService,
+    private treeBuilder: FileTreeBuilderService,
+    private scanPersistence: ScanPersistenceService,
+    private errorDetector: TvErrorDetectorService,
+    private scanStorage: ScanStorageService
   ) {}
 
   /**
@@ -58,6 +82,13 @@ export class FileExplorationService {
   }
 
   /**
+   * Check if a scan is currently running
+   */
+  public isScanActive(): boolean {
+    return this.isScanning;
+  }
+
+  /**
    * Start a new exploration session
    */
   public startExploration(): void {
@@ -67,6 +98,13 @@ export class FileExplorationService {
         'FileExploration'
       );
       return;
+    }
+
+    if (this.session) {
+      this.session.results.clear();
+      this.session.scanned.clear();
+      this.session.queue = [];
+      this.session.variables?.clear();
     }
 
     // Initialize session
@@ -83,20 +121,26 @@ export class FileExplorationService {
       results: new Map(),
       queue: [], // Only explicit and discovered paths (no blind probing)
       scanned: new Set(),
+      variables: new Map(), // Track discovered variables
+      deferredPaths: [], // Templates waiting for variable resolution
     };
+
+    // Initialize variable resolver for this session
+    this.variableResolver.initSession(this.session.id);
 
     // Load initial paths from config (explicit files only)
     const initialPaths: string[] = [];
 
-    EXPLORATION_PATHS.sort((a, b) => b.priority - a.priority).forEach(
-      (category) => {
-        // Add explicit files only
-        initialPaths.push(...category.files);
+    EXPLORATION_PATHS.sort(
+      (a: { priority: number }, b: { priority: number }) =>
+        b.priority - a.priority
+    ).forEach((category: { files: string[] }) => {
+      // Add explicit files only
+      initialPaths.push(...category.files);
 
-        // Note: directories are NOT expanded anymore
-        // Files will be discovered through content analysis
-      }
-    );
+      // Note: directories are NOT expanded anymore
+      // Files will be discovered through content analysis
+    });
 
     this.session.queue = [...initialPaths];
     this.session.totalPaths = initialPaths.length;
@@ -108,6 +152,19 @@ export class FileExplorationService {
 
     this.sessionSubject.next(this.session);
     this.isScanning = true;
+
+    // Initialize session tracking - always create new session ID for fresh start
+    this.sessionStartTime = new Date();
+    this.currentSessionId = this.scanStorage.generateSessionName();
+    this.currentRunId = 1;
+    this.sessionSavedOnce = false; // Reset save tracking
+    this.lastSavedResultCount = 0; // Reset incremental save counter
+    this.filesSinceLastSave = 0; // Reset auto-save counter
+
+    this.consoleService.info(
+      `Session: ${this.currentSessionId}, Run: ${this.currentRunId}`,
+      'FileExploration'
+    );
 
     // Start scanning
     this.scanNextBatch();
@@ -123,6 +180,8 @@ export class FileExplorationService {
     this.isScanning = false;
     this.sessionSubject.next(this.session);
     this.consoleService.info('Exploration paused', 'FileExploration');
+
+    this.saveSessionToServer();
   }
 
   /**
@@ -133,8 +192,18 @@ export class FileExplorationService {
 
     this.session.status = 'running';
     this.isScanning = true;
+
+    this.errorDetector.resetConsecutiveErrors();
+
+    this.currentRunId++;
+    this.sessionStartTime = new Date();
+    this.filesSinceLastSave = 0; // Reset auto-save counter for new run
+
     this.sessionSubject.next(this.session);
-    this.consoleService.info('Exploration resumed', 'FileExploration');
+    this.consoleService.info(
+      `Exploration resumed: Run #${this.currentRunId}`,
+      'FileExploration'
+    );
     this.scanNextBatch();
   }
 
@@ -147,8 +216,211 @@ export class FileExplorationService {
     this.session.status = 'completed';
     this.session.endTime = new Date();
     this.isScanning = false;
+
+    // Clean up variable resolver session
+    this.variableResolver.clearSession(this.session.id);
+
+    this.saveSessionToServer();
+
+    // Note: We don't clear results here because component needs them for display
+    // Results will be cleared when starting a new scan
+    this.session.queue = [];
+    this.session.scanned.clear();
+
+    this.currentSessionId = '';
+    this.currentRunId = 0;
+    this.sessionSavedOnce = false;
+
     this.sessionSubject.next(this.session);
-    this.consoleService.info('Exploration stopped', 'FileExploration');
+    this.consoleService.info(
+      `Exploration stopped (session tracking reset for next scan)`,
+      'FileExploration'
+    );
+  }
+
+  /**
+   * Load and resume a saved session from the server
+   * @param sessionId - Session ID to resume
+   * @returns Promise that resolves when session is loaded
+   */
+  public async loadSessionForResume(sessionId: string): Promise<void> {
+    try {
+      this.consoleService.info(
+        `Loading session for resume: ${sessionId}`,
+        'FileExploration'
+      );
+
+      // Get resume data from server
+      const resumeData = await this.scanStorage
+        .resumeSession(sessionId)
+        .toPromise();
+
+      if (!resumeData) {
+        throw new Error('Failed to load resume data');
+      }
+
+      // Stop current session if any
+      if (this.session) {
+        this.stopExploration();
+      }
+
+      // Restore session data
+      this.session = resumeData.session;
+      this.session.status = 'paused'; // ✅ Set status to 'paused' so resumeExploration() can start
+      this.currentSessionId = resumeData.sessionId;
+      this.currentRunId = resumeData.nextRunId;
+      this.sessionStartTime = new Date();
+      this.sessionSavedOnce = true; // Session was already saved
+
+      // Set lastSavedResultCount to current result count
+      if (resumeData.session.results instanceof Map) {
+        this.lastSavedResultCount = resumeData.session.results.size;
+      } else if (Array.isArray(resumeData.session.results)) {
+        this.lastSavedResultCount = (
+          resumeData.session.results as unknown as FileAnalysis[]
+        ).length;
+      } else {
+        this.lastSavedResultCount = 0;
+      }
+
+      this.filesSinceLastSave = 0; // Reset auto-save counter
+
+      // Ensure session.id matches the resumed sessionId
+      this.session.id = this.currentSessionId;
+
+      // Restore variables to VariableResolverService (filter out excluded sources)
+      const variablesMap = new Map<string, VariableValue[]>();
+      let filteredOutCount = 0;
+
+      Object.entries(resumeData.variables).forEach(([name, values]) => {
+        // ✅ Filter out variables from excluded sources (e.g., mapping.ini)
+        const filteredValues = values.filter(
+          (v) => !shouldExcludeVariableSource(v.discoveredIn)
+        );
+
+        filteredOutCount += values.length - filteredValues.length;
+
+        // Only add if there are values left after filtering
+        if (filteredValues.length > 0) {
+          variablesMap.set(name, filteredValues);
+        }
+      });
+
+      this.consoleService.info(
+        `Restored ${variablesMap.size} variables (${filteredOutCount} filtered out)`,
+        'FileExploration'
+      );
+
+      // Initialize variable resolver session and restore data
+      this.variableResolver.initSession(this.currentSessionId);
+      this.variableResolver.restoreVariables(
+        this.currentSessionId,
+        variablesMap
+      );
+
+      // Restore deferred paths with full metadata
+      if (resumeData.deferredPaths && resumeData.deferredPaths.length > 0) {
+        this.consoleService.info(
+          `Restoring ${resumeData.deferredPaths.length} deferred paths`,
+          'FileExploration'
+        );
+
+        // Restore deferred paths in VariableResolver (NOT in queue!)
+        this.variableResolver.restoreDeferredPaths(
+          this.currentSessionId,
+          resumeData.deferredPaths
+        );
+
+        // Don't add templates to queue - they will be resolved when variables are found
+      }
+
+      // Ensure queue is an array
+      if (!Array.isArray(this.session.queue)) {
+        this.consoleService.warn(
+          `Queue is not an array, creating empty queue`,
+          'FileExploration'
+        );
+        this.session.queue = [];
+      }
+
+      // Convert serialized collections back to proper types
+      // Results: Array of [key, value] pairs → Map
+      if (!(this.session.results instanceof Map)) {
+        const resultsData = this.session.results as unknown;
+        if (Array.isArray(resultsData)) {
+          // Check if it's an array of [key, value] tuples
+          if (resultsData.length > 0 && Array.isArray(resultsData[0])) {
+            // Array of tuples format: [[path, FileAnalysis], ...]
+            this.session.results = new Map(
+              resultsData as [string, FileAnalysis][]
+            );
+          } else {
+            // Legacy array format: [FileAnalysis, ...]
+            const resultsMap = new Map<string, FileAnalysis>();
+            (resultsData as FileAnalysis[]).forEach((result: FileAnalysis) => {
+              resultsMap.set(result.path, result);
+            });
+            this.session.results = resultsMap;
+          }
+        } else {
+          this.consoleService.warn(
+            `Results is not in expected format, creating empty Map`,
+            'FileExploration'
+          );
+          this.session.results = new Map<string, FileAnalysis>();
+        }
+      }
+
+      // Scanned: Array → Set
+      if (!(this.session.scanned instanceof Set)) {
+        const scannedData = this.session.scanned as unknown;
+        if (Array.isArray(scannedData)) {
+          this.session.scanned = new Set<string>(scannedData);
+        } else {
+          this.consoleService.warn(
+            `Scanned is not an array, creating empty Set`,
+            'FileExploration'
+          );
+          this.session.scanned = new Set<string>();
+        }
+      }
+
+      // Variables: Record → Map
+      if (!(this.session.variables instanceof Map)) {
+        const variablesData = this.session.variables as unknown;
+        if (variablesData && typeof variablesData === 'object') {
+          // Convert Record<string, VariableValue[]> to Map
+          const variablesMap = new Map<string, VariableValue[]>();
+          Object.entries(variablesData).forEach(([name, values]) => {
+            variablesMap.set(name, values as VariableValue[]);
+          });
+          this.session.variables = variablesMap;
+        } else {
+          this.consoleService.warn(
+            `Variables is not in expected format, creating empty Map`,
+            'FileExploration'
+          );
+          this.session.variables = new Map<string, VariableValue[]>();
+        }
+      }
+
+      // Notify subscribers
+      this.sessionSubject.next(this.session);
+
+      this.consoleService.info(
+        `Session loaded: Run #${this.currentRunId}, ${this.session.results.size} files, Queue: ${this.session.queue.length} items`,
+        'FileExploration'
+      );
+
+      // Now ready to resume - user can call resumeExploration()
+    } catch (error) {
+      this.consoleService.error(
+        'Failed to load session for resume',
+        error as Error,
+        'FileExploration'
+      );
+      throw error;
+    }
   }
 
   /**
@@ -156,24 +428,6 @@ export class FileExplorationService {
    */
   public getCurrentSession(): ExplorationSession | null {
     return this.session;
-  }
-
-  /**
-   * Expand directories to file paths by combining with common filenames
-   */
-  private expandDirectories(directories: string[]): string[] {
-    const paths: string[] = [];
-
-    for (const dir of directories) {
-      for (const filename of COMMON_FILENAMES) {
-        const fullPath = `${dir}/${filename}`;
-        if (this.isValidPath(fullPath)) {
-          paths.push(fullPath);
-        }
-      }
-    }
-
-    return paths;
   }
 
   /**
@@ -204,26 +458,54 @@ export class FileExplorationService {
   }
 
   /**
-   * Scan next batch of files (sequential, one at a time)
+   * Scan next batch of files (parallel processing)
    */
   private async scanNextBatch(): Promise<void> {
     if (!this.session || !this.isScanning) return;
 
-    // Get next path from queue
-    const path = this.session.queue.shift();
+    // Get next batch of paths (configurable batch size)
+    const batchSize = SCAN_CONFIG.batchSize || 5;
+    const batch: string[] = [];
 
-    if (!path) {
+    for (let i = 0; i < batchSize && this.session.queue.length > 0; i++) {
+      const path = this.session.queue.shift();
+      if (path) {
+        batch.push(path);
+      }
+    }
+
+    if (batch.length === 0) {
       this.stopExploration();
       return;
     }
 
-    // Scan file
-    await this.scanFile(path);
+    // Track SCANNED files count before batch (not results, which includes placeholders)
+    const scannedBeforeBatch = this.session.scanned.size;
+
+    // Scan all files in batch in parallel
+    await Promise.all(batch.map((path) => this.scanFile(path)));
+
+    const scannedAfterBatch = this.session.scanned.size;
+    const actualFilesScanned = scannedAfterBatch - scannedBeforeBatch;
+    this.filesSinceLastSave += actualFilesScanned;
+
+    // Check if auto-save threshold reached
+    if (
+      this.filesSinceLastSave >= this.AUTO_SAVE_FILE_THRESHOLD &&
+      this.session
+    ) {
+      this.saveSessionToServer();
+      this.filesSinceLastSave = 0;
+      this.consoleService.info(
+        `Auto-saved scan progress (${this.AUTO_SAVE_FILE_THRESHOLD} files)`,
+        'FileExploration'
+      );
+    }
 
     // Update progress
     this.updateStats();
 
-    // Continue with next file after delay
+    // Continue with next batch after delay
     if (this.isScanning && this.session.queue.length > 0) {
       setTimeout(() => this.scanNextBatch(), SCAN_CONFIG.delayBetweenFiles);
     } else if (this.session.queue.length === 0) {
@@ -239,882 +521,411 @@ export class FileExplorationService {
 
     // Skip if already scanned
     if (this.session.scanned.has(path)) return;
-    this.session.scanned.add(path);
-    this.session.scannedPaths++;
 
     // Check if there's a placeholder with discoveredFrom info
     const existingResult = this.session.results.get(path);
     const discoveredFrom = existingResult?.discoveredFrom;
 
-    try {
-      // Execute Hisense_FileRead remotely on TV
-      // Must use relative path with ../../../
-      const relativePath = `../../../${path}`;
-      const result = await firstValueFrom(
-        this.tvCommandService.executeFunction('Hisense_FileRead', [
-          relativePath,
-          0,
-        ])
-      );
+    // Delegate file scanning to FileScannerService
+    const scanResult = await this.fileScanner.scanFile(path);
 
-      const content = result as string;
+    if (scanResult.status !== 'success' || !scanResult.content) {
+      // Distinguish between permanent and temporary errors
+      const isPermanentError = scanResult.status === 'not-found';
+      const isTemporaryError = scanResult.status === 'error';
 
-      if (!content || content === 'null' || content === 'undefined') {
-        // File not found or access denied
+      // Only save and display permanent errors
+      if (isPermanentError) {
         const result: FileAnalysis = {
           path,
-          status: 'not-found',
+          status: scanResult.status,
           size: 0,
           isBinary: false,
           fileType: 'unknown',
           confidence: 0,
           extractedPaths: [],
-          discoveredFrom, // Preserve source if available
+          discoveredFrom,
           discoveryMethod: discoveredFrom ? 'extracted' : 'known-list',
           timestamp: new Date(),
+          error: scanResult.error,
+          tvProcessingTimeMs: scanResult.tvProcessingTimeMs,
         };
 
         this.session.results.set(path, result);
         this.session.failedReads++;
         this.resultsSubject.next(result);
-        return;
+        this.session.scanned.add(path); // Permanent - don't retry
+        this.session.scannedPaths++; // Only count for permanent errors
+
+        // Auto-save is handled in scanNextBatch() after batch completes
       }
 
-      // Analyze content
-      const analysis = this.analyzeContent(path, content);
+      // Temporary errors: count only, don't save (available for resume)
+      if (isTemporaryError) {
+        this.session.failedReads++;
+        // Not in results - won't appear in tree
+        // Not in scanned - can be retried on resume
+        // No scannedPaths++ - will be counted on resume
+        // Path stays in pending set
 
-      // Preserve discoveredFrom from placeholder
-      if (discoveredFrom) {
-        analysis.discoveredFrom = discoveredFrom;
-        analysis.discoveryMethod = 'extracted';
-      }
+        if (scanResult.error) {
+          // Analyze error and check if we should pause
+          const error = new Error(scanResult.error);
+          const errorAnalysis = this.errorDetector.analyzeError(error);
 
-      // Store result
-      this.session.results.set(path, analysis);
-      this.session.successfulReads++;
-
-      if (analysis.isBinary) {
-        this.session.binaryFiles++;
-      } else {
-        this.session.textFiles++;
-
-        // Special handling for /proc/mounts - extract mount points
-        if (path === '/proc/mounts') {
-          const mountPaths = this.extractMountPaths(content);
-          if (mountPaths.length > 0) {
-            // Add the extracted paths to the regular extracted paths
-            analysis.extractedPaths.push(...mountPaths);
-            this.consoleService.info(
-              `Extracted ${mountPaths.length} mount points from ${path}`,
+          if (errorAnalysis.shouldPause && this.isScanning) {
+            this.consoleService.error(
+              `Critical error detected - auto-pausing scan: ${errorAnalysis.type}`,
+              scanResult.error,
               'FileExploration'
             );
-          }
-        }
 
-        // Special handling for /etc/passwd - extract home directories
-        if (path === '/etc/passwd') {
-          const homePaths = this.extractHomeDirPaths(content);
-          if (homePaths.length > 0) {
-            analysis.extractedPaths.push(...homePaths);
-            this.consoleService.info(
-              `Extracted ${homePaths.length} home directory paths from ${path}`,
-              'FileExploration'
-            );
-          }
-        }
+            // Update session with error info
+            if (this.session) {
+              this.session.status = 'paused';
+              this.isScanning = false;
 
-        // Special handling for /proc files - extract PIDs and process info
-        if (path.startsWith('/proc/')) {
-          const procPaths = this.extractProcPaths(path, content);
-          if (procPaths.length > 0) {
-            analysis.extractedPaths.push(...procPaths);
-            this.consoleService.info(
-              `Extracted ${procPaths.length} process paths from ${path}`,
-              'FileExploration'
-            );
-          }
-        }
+              // ✅ Save session to server on auto-pause
+              this.saveSessionToServer();
 
-        // Special handling for shell scripts (profile, bashrc, etc.) - extract paths from exports and source statements
-        if (this.isShellScript(path)) {
-          const shellPaths = this.extractShellScriptPaths(content);
-          if (shellPaths.length > 0) {
-            analysis.extractedPaths.push(...shellPaths);
-            this.consoleService.info(
-              `Extracted ${shellPaths.length} paths from shell script ${path}`,
-              'FileExploration'
-            );
-          }
-        }
+              // ✅ Old LocalStorage backup (deprecated - using dev-server now)
+              // this.scanPersistence.saveSession(
+              //   this.session,
+              //   this.errorDetector.getErrorInfo()
+              // );
 
-        // Add discovered paths to queue
-        if (analysis.extractedPaths.length > 0) {
-          // Remove duplicates from extracted paths
-          analysis.extractedPaths = Array.from(
-            new Set(analysis.extractedPaths)
+              // Emit updated session
+              this.sessionSubject.next(this.session);
+            }
+
+            return; // Stop processing to prevent further errors
+          }
+
+          this.consoleService.error(
+            `Error scanning ${path}: ${scanResult.error}`,
+            scanResult.error,
+            'FileExploration'
           );
+        }
+      }
+      return;
+    }
 
-          // Separate new paths from already known paths
-          const newPaths: string[] = [];
-          const ignoredPaths: string[] = [];
+    // ✅ Reset error counter on success
+    this.errorDetector.resetConsecutiveErrors();
 
-          for (const p of analysis.extractedPaths) {
-            if (
-              this.session &&
-              (this.session.scanned.has(p) || this.session.queue.includes(p))
-            ) {
-              ignoredPaths.push(p);
-            } else {
-              newPaths.push(p);
-            }
-          }
+    const content = scanResult.content;
 
-          // Update extractedPaths to only contain new paths
-          analysis.extractedPaths = newPaths;
+    // Analyze content (light operation - type detection only)
+    const analysis = this.analyzeContent(path, content);
 
-          // Store ignored paths separately
-          analysis.ignoredPaths = ignoredPaths;
+    // Add TV processing time from scan result
+    analysis.tvProcessingTimeMs = scanResult.tvProcessingTimeMs;
 
-          // Add discovered paths to end of queue with source tracking
-          // They will be scanned after currently queued paths
-          this.session.queue.push(...newPaths);
-          this.session.totalPaths += newPaths.length;
+    // Check if there's a placeholder with metadata
+    const placeholder = this.session.results.get(path);
 
-          // Mark the source file for newly discovered paths
-          for (const newPath of newPaths) {
-            // Pre-create result entry with discoveredFrom metadata
-            // This will be overwritten when the file is actually scanned
-            // But we preserve the discoveredFrom field
-            const existingResult = this.session.results.get(newPath);
-            if (!existingResult) {
-              // Create placeholder to track source
-              const placeholder: FileAnalysis = {
-                path: newPath,
-                status: 'not-found', // Will be updated when scanned
-                size: 0,
-                isBinary: false,
-                fileType: 'unknown',
-                confidence: 0,
-                extractedPaths: [],
-                discoveredFrom: path, // Track the source!
-                discoveryMethod: 'extracted',
-                timestamp: new Date(),
-              };
-              this.session.results.set(newPath, placeholder);
-            }
-          }
+    // Preserve discoveredFrom and discoveryMethod from placeholder
+    if (placeholder) {
+      if (placeholder.discoveredFrom) {
+        analysis.discoveredFrom = placeholder.discoveredFrom;
+      }
+      if (placeholder.discoveryMethod) {
+        analysis.discoveryMethod = placeholder.discoveryMethod;
+      }
+    } else if (discoveredFrom) {
+      // Fallback: use discoveredFrom parameter if no placeholder exists
+      analysis.discoveredFrom = discoveredFrom;
+      analysis.discoveryMethod = 'extracted';
+    }
 
+    // Store result and update statistics immediately
+    this.session.results.set(path, analysis);
+    this.session.successfulReads++;
+    this.session.scanned.add(path); // Mark as successfully scanned
+    this.session.scannedPaths++; // Count for progress
+
+    if (analysis.isBinary) {
+      this.session.binaryFiles++;
+    } else {
+      this.session.textFiles++;
+    }
+
+    // Emit result to UI immediately
+    this.resultsSubject.next(analysis);
+
+    // Auto-save is handled in scanNextBatch() after batch completes
+
+    // Yield to event loop before heavy path extraction
+    // This allows other pending network responses to be processed
+    // while statistics are already updated in the UI
+    await Promise.resolve();
+
+    // Skip path extraction for binary files
+    if (analysis.isBinary) {
+      return;
+    }
+
+    // Continue with path extraction for text files
+    if (this.session && !analysis.isBinary) {
+      // Special handling for /proc/mounts - extract mount points
+      if (path === '/proc/mounts') {
+        const mountPaths = this.pathExtractor.extractMountPaths(content);
+        if (mountPaths.length > 0) {
+          // Add the extracted paths to the regular extracted paths
+          analysis.extractedPaths.push(...mountPaths);
           this.consoleService.info(
-            `Found ${newPaths.length} new paths in ${path} (${ignoredPaths.length} already known)`,
+            `Extracted ${mountPaths.length} mount points from ${path}`,
             'FileExploration'
           );
         }
       }
 
-      this.resultsSubject.next(analysis);
-    } catch (error) {
-      const result: FileAnalysis = {
-        path,
-        status: 'error',
-        size: 0,
-        isBinary: false,
-        fileType: 'error',
-        confidence: 0,
-        extractedPaths: [],
-        discoveredFrom, // Preserve source if available
-        discoveryMethod: discoveredFrom ? 'extracted' : 'known-list',
-        timestamp: new Date(),
-        error: error instanceof Error ? error.message : String(error),
-      };
+      // Special handling for /etc/passwd - extract home directories
+      if (path === '/etc/passwd') {
+        const homePaths = this.pathExtractor.extractHomeDirPaths(content);
+        if (homePaths.length > 0) {
+          analysis.extractedPaths.push(...homePaths);
+          this.consoleService.info(
+            `Extracted ${homePaths.length} home directory paths from ${path}`,
+            'FileExploration'
+          );
+        }
+      }
 
-      this.session.results.set(path, result);
-      this.session.failedReads++;
-      this.resultsSubject.next(result);
+      // Special handling for /proc files - extract PIDs and process info
+      if (path.startsWith('/proc/')) {
+        const procPaths = this.pathExtractor.extractProcPaths(path, content);
+        if (procPaths.length > 0) {
+          analysis.extractedPaths.push(...procPaths);
+          this.consoleService.info(
+            `Extracted ${procPaths.length} process paths from ${path}`,
+            'FileExploration'
+          );
+        }
+      }
 
-      this.consoleService.error(
-        `Error scanning ${path}: ${result.error}`,
-        error,
-        'FileExploration'
-      );
+      // Special handling for shell scripts (profile, bashrc, etc.) - extract paths from exports and source statements
+      if (this.pathExtractor.isShellScript(path)) {
+        const shellPaths = this.pathExtractor.extractShellScriptPaths(content);
+        if (shellPaths.length > 0) {
+          // Track generated paths separately
+          if (!analysis.generatedPaths) {
+            analysis.generatedPaths = [];
+          }
+
+          // Process shell paths through variable resolver to handle $VAR and ${VAR} syntax
+          for (const shellPath of shellPaths) {
+            const result = this.variableResolver.processPath(
+              this.session.id,
+              shellPath,
+              'shell-script',
+              (p) => this.pathExtractor.looksLikeFile(p)
+            );
+
+            // Separate raw extracted paths from generated (resolved) paths using wasGenerated flag
+            if (result.wasGenerated && result.resolvedPaths.length > 0) {
+              // Path had variables and was resolved -> generated
+              analysis.generatedPaths.push(...result.resolvedPaths);
+            } else if (result.resolvedPaths.length > 0) {
+              // Path was literal -> extracted
+              analysis.extractedPaths.push(...result.resolvedPaths);
+            }
+          }
+
+          this.consoleService.info(
+            `Extracted ${analysis.extractedPaths.length} paths and generated ${analysis.generatedPaths.length} paths from shell script ${path}`,
+            'FileExploration'
+          );
+        }
+      }
+
+      // Yield to event loop after special path extractions
+      // This allows other pending network responses to be processed
+      await Promise.resolve();
+
+      // Add discovered paths to queue (combine extracted + generated)
+      const allDiscoveredPaths = [
+        ...analysis.extractedPaths,
+        ...(analysis.generatedPaths || []),
+      ];
+
+      if (allDiscoveredPaths.length > 0) {
+        // Remove duplicates
+        const uniquePaths = Array.from(new Set(allDiscoveredPaths));
+
+        // Separate new paths from already known paths
+        const newExtracted: string[] = [];
+        const newGenerated: string[] = [];
+        const ignoredPaths: string[] = [];
+
+        for (const p of uniquePaths) {
+          if (
+            this.session &&
+            (this.session.scanned.has(p) || this.session.queue.includes(p))
+          ) {
+            ignoredPaths.push(p);
+          } else {
+            // Track whether path was extracted or generated
+            if (analysis.extractedPaths.includes(p)) {
+              newExtracted.push(p);
+            } else {
+              newGenerated.push(p);
+            }
+          }
+        }
+
+        // Update lists to only contain new paths
+        analysis.extractedPaths = newExtracted;
+        analysis.generatedPaths =
+          newGenerated.length > 0 ? newGenerated : undefined;
+
+        // Store ignored paths separately
+        analysis.ignoredPaths = ignoredPaths;
+
+        // Add discovered paths to end of queue with source tracking
+        const allNewPaths = [...newExtracted, ...newGenerated];
+        this.session.queue.push(...allNewPaths);
+        this.session.totalPaths += allNewPaths.length;
+
+        // Mark the source file for newly discovered paths
+        for (const newPath of allNewPaths) {
+          // Pre-create result entry with discoveredFrom metadata
+          // This will be overwritten when the file is actually scanned
+          // But we preserve the discoveredFrom field
+          const existingResult = this.session.results.get(newPath);
+          if (!existingResult) {
+            const wasGenerated = newGenerated.includes(newPath);
+            // Create placeholder to track source
+            const placeholder: FileAnalysis = {
+              path: newPath,
+              status: 'not-found', // Will be updated when scanned
+              size: 0,
+              isBinary: false,
+              fileType: 'unknown',
+              confidence: 0,
+              extractedPaths: [],
+              discoveredFrom: path, // Track the source!
+              discoveryMethod: wasGenerated ? 'generated' : 'extracted',
+              timestamp: new Date(),
+              isPlaceholder: true, // Mark as placeholder
+            };
+            this.session.results.set(newPath, placeholder);
+          }
+        }
+
+        this.consoleService.info(
+          `Found ${newExtracted.length} extracted + ${newGenerated.length} generated = ${allNewPaths.length} new paths in ${path} (${ignoredPaths.length} already known)`,
+          'FileExploration'
+        );
+      }
     }
   }
-
   /**
    * Analyze file content
    */
   private analyzeContent(path: string, content: string): FileAnalysis {
     const size = content.length;
 
-    // Detect if binary
-    const binaryCheck = this.detectBinary(content);
-    const isBinary = binaryCheck.isBinary;
+    // Delegate content analysis to FileContentAnalyzerService
+    const analysis = this.contentAnalyzer.analyzeContent(path, content);
+    const isBinary = analysis.isBinary;
 
-    // Extract paths only from text files
-    const extractedPaths = isBinary ? [] : this.extractPaths(content);
+    // Extract variables AND paths from text files
+    // IMPORTANT: Extract variables FIRST, then paths!
+    let extractedPaths: string[] = [];
+    let generatedPaths: string[] = [];
+    if (!isBinary && this.session) {
+      // Skip path extraction for .pem files (certificates contain base64, not real paths)
+      const skipPathExtraction = path.endsWith('.pem');
 
-    // Generate preview
-    const preview = isBinary
-      ? `[Binary: ${binaryCheck.fileType}]`
-      : content.slice(0, 10000);
+      if (!skipPathExtraction) {
+        // 1. Extract variables and get newly resolved deferred paths
+        const deferredResolved = this.variableResolver.extractVariables(
+          content,
+          path,
+          this.session.id
+        );
+
+        // 2. Extract paths from current content
+        const pathResult = this.extractAndResolvePaths(content);
+        extractedPaths = pathResult.extracted;
+        generatedPaths = pathResult.generated;
+
+        // 3. Add deferred resolved paths to generated (they came from variable resolution)
+        if (deferredResolved.length > 0) {
+          this.consoleService.info(
+            `🔧 Resolved ${deferredResolved.length} deferred paths after discovering variables in ${path}`,
+            'FileExploration'
+          );
+          generatedPaths.push(...deferredResolved);
+        }
+      }
+    }
 
     return {
       path,
       status: 'success',
       content,
-      contentPreview: preview,
+      contentPreview: analysis.contentPreview,
       size,
-      isBinary,
-      fileType: binaryCheck.fileType,
-      encoding: isBinary ? 'binary' : 'utf-8',
-      confidence: binaryCheck.confidence,
-      magicBytes: binaryCheck.magicBytes,
+      isBinary: analysis.isBinary,
+      fileType: analysis.fileType,
+      encoding: analysis.encoding,
+      confidence: analysis.confidence,
+      magicBytes: analysis.magicBytes,
       extractedPaths,
+      generatedPaths: generatedPaths.length > 0 ? generatedPaths : undefined,
       discoveryMethod: 'known-list',
       timestamp: new Date(),
     };
   }
 
   /**
-   * Detect if content is binary
-   */
-  private detectBinary(content: string): {
-    isBinary: boolean;
-    fileType: string;
-    confidence: number;
-    magicBytes: string;
-  } {
-    // Check magic bytes
-    for (const [signature, type] of Object.entries(BINARY_SIGNATURES)) {
-      if (content.startsWith(signature)) {
-        return {
-          isBinary: true,
-          fileType: type,
-          confidence: 1.0,
-          magicBytes: this.formatMagicBytes(content.slice(0, 8)),
-        };
-      }
-    }
-
-    // Check for null bytes (strong indicator of binary)
-    if (content.includes('\0')) {
-      return {
-        isBinary: true,
-        fileType: 'binary',
-        confidence: 1.0,
-        magicBytes: this.formatMagicBytes(content.slice(0, 8)),
-      };
-    }
-
-    // Calculate printable character ratio
-    const printableChars = (content.match(/[\x20-\x7E\n\r\t]/g) || []).length;
-    const ratio = printableChars / content.length;
-
-    // Check for script shebang
-    if (content.startsWith('#!')) {
-      return {
-        isBinary: false,
-        fileType: 'script',
-        confidence: 1.0,
-        magicBytes: this.formatMagicBytes(content.slice(0, 8)),
-      };
-    }
-
-    // If mostly printable, it's text
-    if (ratio > 0.85) {
-      return {
-        isBinary: false,
-        fileType: 'text',
-        confidence: ratio,
-        magicBytes: this.formatMagicBytes(content.slice(0, 8)),
-      };
-    }
-
-    // Otherwise, probably binary
-    return {
-      isBinary: ratio < 0.7,
-      fileType: ratio < 0.7 ? 'binary' : 'text',
-      confidence: ratio,
-      magicBytes: this.formatMagicBytes(content.slice(0, 8)),
-    };
-  }
-
-  /**
-   * Format magic bytes as hex string
-   */
-  private formatMagicBytes(content: string): string {
-    return content
-      .slice(0, 8)
-      .split('')
-      .map((c) => c.charCodeAt(0).toString(16).padStart(2, '0'))
-      .join(' ');
-  }
-
-  /**
    * Extract paths from text content
+   * Returns both extracted (literal) and generated (resolved from variables) paths
    */
-  private extractPaths(content: string): string[] {
-    const paths = new Set<string>();
+  private extractAndResolvePaths(content: string): {
+    extracted: string[];
+    generated: string[];
+  } {
+    if (!this.session) return { extracted: [], generated: [] };
 
-    // Apply all extraction patterns
-    for (const [, pattern] of Object.entries(PATH_EXTRACTION_PATTERNS)) {
-      const matches = content.matchAll(pattern);
-      for (const match of matches) {
-        const path = match[1];
-        if (path && this.isValidPath(path)) {
-          // Resolve shell variables
-          const resolved = this.resolveVariables(path);
-          // Only add if it looks like a file (not just a directory)
-          if (this.looksLikeFile(resolved)) {
-            paths.add(resolved);
-          }
-        }
-      }
-    }
+    // Delegate basic extraction to PathExtractorService
+    const rawPaths = this.pathExtractor.extractPaths(content);
+    const extractedPaths = new Set<string>();
+    const generatedPaths = new Set<string>();
 
-    return Array.from(paths);
-  }
-
-  /**
-   * Extract mount points from /proc/mounts content
-   * Format: device mountpoint fstype options dump pass
-   * Example: /dev/mtdblock4 /basic squashfs ro,relatime 0 0
-   *
-   * Note: We don't blindly probe for files in mount points anymore.
-   * Files will be discovered through content analysis of other files that reference them.
-   */
-  private extractMountPaths(content: string): string[] {
-    // Just log mount points for debugging, but don't generate file paths
-    const lines = content.split('\n');
-    const mountPoints: string[] = [];
-
-    for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 3) {
-        const mountPoint = parts[1];
-        const fsType = parts[2];
-
-        // Log interesting mount points (skip virtual filesystems)
-        if (
-          ![
-            'devtmpfs',
-            'proc',
-            'tmpfs',
-            'sysfs',
-            'debugfs',
-            'pstore',
-            'devpts',
-            'selinuxfs',
-            'cgroup',
-          ].includes(fsType) &&
-          !['/dev', '/proc', '/sys', '/run'].some((skip) =>
-            mountPoint.startsWith(skip)
-          )
-        ) {
-          mountPoints.push(`${mountPoint} (${fsType})`);
-        }
-      }
-    }
-
-    if (mountPoints.length > 0) {
-      this.consoleService.debug(
-        `Found ${mountPoints.length} physical mount points: ${mountPoints.join(
-          ', '
-        )}`,
-        'FileExploration'
+    // Process each path through VariableResolverService
+    for (const path of rawPaths) {
+      const result = this.variableResolver.processPath(
+        this.session.id,
+        path,
+        'content',
+        (p) => this.pathExtractor.looksLikeFile(p)
       );
-    }
 
-    // Return empty array - rely on content-based discovery instead of blind probing
-    return [];
-  }
-
-  /**
-   * Extract home directory paths from /etc/passwd content
-   * Format: username:x:uid:gid:info:home:shell
-   * Example: root:x:0:0:root:/root:/bin/sh
-   */
-  private extractHomeDirPaths(content: string): string[] {
-    const homePaths: string[] = [];
-    const lines = content.split('\n');
-
-    for (const line of lines) {
-      const parts = line.trim().split(':');
-      if (parts.length >= 6) {
-        const homeDir = parts[5];
-
-        // Generate potential config files in home directory
-        const candidates = [
-          `${homeDir}/.bashrc`,
-          `${homeDir}/.profile`,
-          `${homeDir}/.bash_profile`,
-          `${homeDir}/.config`,
-          `${homeDir}/.ssh/config`,
-        ];
-
-        for (const candidate of candidates) {
-          if (this.isValidPath(candidate) && this.looksLikeFile(candidate)) {
-            homePaths.push(candidate);
-          }
+      // Separate literal paths from generated (resolved) paths using wasGenerated flag
+      if (result.wasGenerated && result.resolvedPaths.length > 0) {
+        // Path had variables and was resolved -> generated
+        for (const resolvedPath of result.resolvedPaths) {
+          generatedPaths.add(resolvedPath);
+        }
+      } else if (result.resolvedPaths.length > 0) {
+        // Path was literal -> extracted
+        for (const resolvedPath of result.resolvedPaths) {
+          extractedPaths.add(resolvedPath);
         }
       }
+
+      // Deferred paths are tracked in VariableResolverService
+      // They will be resolved later when variables are discovered
     }
 
-    return homePaths;
-  }
-
-  /**
-   * Extract process-related paths from /proc files
-   * Intelligently discovers PIDs from process lists instead of blind counting
-   */
-  private extractProcPaths(path: string, content: string): string[] {
-    const procPaths: string[] = [];
-
-    // Extract PIDs from /proc/self/status (look for Pid: line)
-    if (
-      path.includes('/proc/self/status') ||
-      path.match(/\/proc\/\d+\/status$/)
-    ) {
-      // Look for parent PID (PPid), thread group ID (Tgid), etc.
-      const pidMatches = content.match(/(?:Pid|PPid|Tgid|TracerPid):\s+(\d+)/g);
-      if (pidMatches) {
-        for (const match of pidMatches) {
-          const pid = match.match(/\d+/)?.[0];
-          if (pid && pid !== '0') {
-            // Add interesting files for this PID
-            const candidates = [
-              `/proc/${pid}/cmdline`,
-              `/proc/${pid}/environ`,
-              `/proc/${pid}/status`,
-              `/proc/${pid}/maps`,
-            ];
-            procPaths.push(...candidates);
-          }
-        }
-      }
-    }
-
-    // Extract PIDs from cmdline or environ content (they often reference other PIDs)
-    if (path.includes('/cmdline') || path.includes('/environ')) {
-      // Look for patterns like "pid=123" or "/proc/456"
-      const pidRefs = content.match(/(?:pid[=:\s]+|\/proc\/)(\d+)/gi);
-      if (pidRefs) {
-        for (const match of pidRefs) {
-          const pid = match.match(/\d+/)?.[0];
-          if (pid && pid !== '0' && parseInt(pid) < 10000) {
-            // Reasonable PID range
-            procPaths.push(`/proc/${pid}/cmdline`);
-            procPaths.push(`/proc/${pid}/status`);
-          }
-        }
-      }
-    }
-
-    // Extract process-referenced files from maps (memory mapped files)
-    if (path.includes('/maps')) {
-      // Maps format: address perms offset dev inode pathname
-      // Example: 7f1234567000-7f1234568000 r-xp 00000000 b3:02 12345 /lib/libc.so.6
-      const mapMatches = content.match(
-        /^\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\/\S+)$/gm
-      );
-      if (mapMatches) {
-        for (const match of mapMatches) {
-          const filePath = match.split(/\s+/).pop();
-          if (
-            filePath &&
-            this.isValidPath(filePath) &&
-            this.looksLikeFile(filePath)
-          ) {
-            procPaths.push(filePath);
-          }
-        }
-      }
-    }
-
-    // Extract file descriptors from /proc/self/fd/ references
-    const fdMatches = content.match(/\/proc\/(?:self|\d+)\/fd\/\d+/g);
-    if (fdMatches) {
-      procPaths.push(...fdMatches);
-    }
-
-    return procPaths;
-  }
-
-  /**
-   * Check if a path is a shell script
-   */
-  private isShellScript(path: string): boolean {
-    const shellScriptPatterns = [
-      /\/profile$/,
-      /\/bashrc$/,
-      /\/bash_profile$/,
-      /\.sh$/,
-      /\.bash$/,
-      /\/init\.rc$/,
-      /\/\.config$/,
-      /global_env_setup\.ini$/,
-    ];
-
-    return shellScriptPatterns.some((pattern) => pattern.test(path));
-  }
-
-  /**
-   * Extract paths from shell scripts (e.g., /etc/profile)
-   * Handles:
-   * - export statements with paths
-   * - source statements with variable resolution
-   * - LD_LIBRARY_PATH and PATH with multiple colon-separated entries
-   * - Bash loops with path expansion (e.g., for INI_3RD in `ls ${PATH}`)
-   */
-  private extractShellScriptPaths(content: string): string[] {
-    const paths = new Set<string>();
-
-    // 1. Extract PATH and LD_LIBRARY_PATH entries
-    const pathMatches = content.match(/(?:LD_LIBRARY_PATH|PATH)=([^\n]+)/g);
-    if (pathMatches) {
-      for (const match of pathMatches) {
-        const pathValue = match.split('=')[1];
-        // Split by colon and process each entry
-        const entries = pathValue.split(':');
-        for (let entry of entries) {
-          entry = entry.trim();
-          // Resolve variables
-          entry = this.resolveVariables(entry);
-          // Just log the directories - don't blindly probe for files
-          // Real files will be discovered through other means (maps, source statements, etc.)
-          if (entry.startsWith('/') && this.isValidPath(entry)) {
-            this.consoleService.debug(
-              `Found PATH/LD_LIBRARY_PATH directory: ${entry}`,
-              'FileExploration'
-            );
-          }
-        }
-      }
-    }
-
-    // 2. Extract source/include statements with variable resolution
-    // Example: source ${LINUX_BASIC_PATH}/3rd_ini/$INI_3RD/global_env_setup.ini
-    const sourceMatches = content.match(
-      /(?:source|\.)\s+([^\s;]+(?:global_env_setup\.ini|\.bashrc|\.profile|\.sh|\.bash))/g
-    );
-    if (sourceMatches) {
-      for (const match of sourceMatches) {
-        let path = match.replace(/^(?:source|\.)\s+/, '').trim();
-        // Resolve variables first
-        path = this.resolveVariables(path);
-
-        // Handle dynamic paths like /basic/3rd_ini/$VAR/file
-        // We'll try common subdirectories
-        if (path.includes('$')) {
-          const basePath = path.split('$')[0];
-          // Try to expand with common patterns
-          const expansions = this.expandDynamicPath(path, basePath);
-          for (const expanded of expansions) {
-            if (this.isValidPath(expanded) && this.looksLikeFile(expanded)) {
-              paths.add(expanded);
-            }
-          }
-        } else if (this.isValidPath(path) && this.looksLikeFile(path)) {
-          paths.add(path);
-        }
-      }
-    }
-
-    // 3. Extract paths from file test conditions [ -f path ] (regular files only)
-    // -f = regular file, -r = readable file, -x = executable (we want these)
-    // -d = directory, -e = exists (we DON'T want these, could be directories)
-    // Also matches negation: [ ! -f path ]
-    // Note: These flags explicitly test for files, so we skip looksLikeFile() check
-    const testMatches = content.match(/\[\s*!?\s*-[frx]\s+([^\]]+)\s*\]/g);
-    if (testMatches) {
-      for (const match of testMatches) {
-        let path = match
-          .replace(/\[\s*!?\s*-[frx]\s+/, '')
-          .replace(/\s*\]/, '');
-        path = this.resolveVariables(path);
-        // Skip looksLikeFile() - if a script tests with -f/-r/-x, it IS a file
-        if (this.isValidPath(path)) {
-          paths.add(path);
-        }
-      }
-    }
-
-    // 4. Extract paths from bash loops
-    // Example: for INI_3RD in `ls ${LINUX_BASIC_PATH}/3rd_ini`;
-    const loopMatches = content.match(
-      /for\s+\w+\s+in\s+`[^`]*\$\{?[\w_]+\}?([^`]+)`/g
-    );
-    if (loopMatches) {
-      for (const match of loopMatches) {
-        // Extract the directory being listed
-        const dirMatch = match.match(/\$\{?([\w_]+)\}?([^`]*)/);
-        if (dirMatch) {
-          const varName = dirMatch[1];
-          const suffix = dirMatch[2].replace(/^[^/]*/, ''); // Remove 'ls' or similar
-          const resolvedBase = this.resolveVariables(`\${${varName}}`);
-          const fullPath = `${resolvedBase}${suffix}`;
-
-          // This is a directory being scanned, try to find config files in subdirectories
-          // Example: /basic/3rd_ini/* -> try /basic/3rd_ini/*/global_env_setup.ini
-          const candidates = [
-            `${fullPath}/global_env_setup.ini`,
-            `${fullPath}/.config`,
-            `${fullPath}/config`,
-          ];
-
-          for (const candidate of candidates) {
-            if (this.isValidPath(candidate)) {
-              // For wildcard paths, we need to probe common subdirectories
-              const expanded = this.expandWildcardPath(candidate);
-              for (const exp of expanded) {
-                if (this.looksLikeFile(exp)) {
-                  paths.add(exp);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // 5. Extract paths from output redirections (>, >>)
-    // Example: echo "text" > /path/to/file or command >> /var/log/file.log
-    const redirectMatches = content.match(/(?:>>?|<)\s*([/\w\-.${}]+)/g);
-    if (redirectMatches) {
-      for (const match of redirectMatches) {
-        let path = match.replace(/^(?:>>?|<)\s*/, '').trim();
-        path = this.resolveVariables(path);
-        if (this.isValidPath(path) && this.looksLikeFile(path)) {
-          paths.add(path);
-        }
-      }
-    }
-
-    // 6. Extract paths from tee commands
-    // Example: command | tee /path/to/file or command | tee -a /var/log/file.log
-    const teeMatches = content.match(/\|\s*tee\s+(?:-a\s+)?([/\w\-.${}]+)/g);
-    if (teeMatches) {
-      for (const match of teeMatches) {
-        let path = match.replace(/\|\s*tee\s+(?:-a\s+)?/, '').trim();
-        path = this.resolveVariables(path);
-        if (this.isValidPath(path) && this.looksLikeFile(path)) {
-          paths.add(path);
-        }
-      }
-    }
-
-    // 7. Extract paths from file manipulation commands (touch, rm, cat, etc.)
-    // Example: touch /tmp/file, rm /path/to/file, cat /etc/config
-    const fileCommandMatches = content.match(
-      /\b(?:touch|rm|cat|cp|mv|ln)\s+(?:-[a-z]+\s+)*([/\w\-.${}]+)/g
-    );
-    if (fileCommandMatches) {
-      for (const match of fileCommandMatches) {
-        let path = match
-          .replace(/\b(?:touch|rm|cat|cp|mv|ln)\s+(?:-[a-z]+\s+)*/, '')
-          .trim();
-        path = this.resolveVariables(path);
-        // Skip looksLikeFile() - these commands explicitly operate on files
-        if (this.isValidPath(path)) {
-          paths.add(path);
-        }
-      }
-    }
-
-    // 8. Extract absolute paths from command arguments
-    // Example: /bin/app_launcher factoryservice /basic/bin/factory/factory_service_preload
-    // Matches any absolute path (starting with /) in the script
-    const absolutePathMatches = content.match(/(?:^|\s)([/][\w\-./]+)/gm);
-    if (absolutePathMatches) {
-      for (const match of absolutePathMatches) {
-        let path = match.trim();
-        path = this.resolveVariables(path);
-        // Filter: Must be valid and look like a file (not just any path)
-        if (this.isValidPath(path) && this.looksLikeFile(path)) {
-          paths.add(path);
-        }
-      }
-    }
-
-    return Array.from(paths);
-  }
-
-  /**
-   * Expand dynamic paths with variables
-   * Example: /basic/3rd_ini/$VAR/file -> [/basic/3rd_ini/common/file, /basic/3rd_ini/vendor/file]
-   */
-  private expandDynamicPath(path: string, basePath: string): string[] {
-    const expanded: string[] = [];
-
-    // Common subdirectory names to try
-    const commonDirs = [
-      'common',
-      'vendor',
-      'system',
-      'default',
-      'main',
-      'local',
-      'user',
-    ];
-
-    // Extract the part after the variable
-    const afterVar = path.split('$')[1]?.split('/').slice(1).join('/') || '';
-
-    for (const dir of commonDirs) {
-      const expandedPath = `${basePath}${dir}/${afterVar}`;
-      expanded.push(expandedPath);
-    }
-
-    return expanded;
-  }
-
-  /**
-   * Expand wildcard paths
-   * Example: /basic/3rd_ini/asterisk/global_env_setup.ini (where asterisk is a wildcard)
-   */
-  private expandWildcardPath(path: string): string[] {
-    if (!path.includes('*')) {
-      return [path];
-    }
-
-    const expanded: string[] = [];
-    const parts = path.split('*');
-    const basePath = parts[0];
-    const suffix = parts[1] || '';
-
-    // Try common subdirectories
-    const commonDirs = [
-      'common',
-      'vendor',
-      'system',
-      'default',
-      'main',
-      'local',
-      'user',
-    ];
-
-    for (const dir of commonDirs) {
-      expanded.push(`${basePath}${dir}${suffix}`);
-    }
-
-    return expanded;
-  }
-
-  /**
-   * Check if a path looks like a file (not just a directory)
-   */
-  private looksLikeFile(path: string): boolean {
-    // Exclude library paths (they are binaries anyway)
-    if (path.includes('/lib/') || path.includes('/lib64/')) return false;
-    if (path.endsWith('.so') || path.includes('.so.')) return false;
-
-    // Allow executables in /bin/ and /sbin/ (they are files, not directories)
-    // But block the directories themselves
-    if (path === '/bin' || path === '/sbin') return false;
-    if (path === '/usr/bin' || path === '/usr/sbin') return false;
-
-    // Has file extension (e.g., .conf, .log, .sh)
-    if (/\.[a-zA-Z0-9]+$/.test(path)) return true;
-
-    // Known file patterns without extension
-    const filePatterns = [
-      /\/passwd$/,
-      /\/shadow$/,
-      /\/group$/,
-      /\/hosts$/,
-      /\/hostname$/,
-      /\/profile$/,
-      /\/bashrc$/,
-      /\/bash_profile$/,
-      /\/version$/,
-      /\/release$/,
-      /\/cmdline$/,
-      /\/cpuinfo$/,
-      /\/meminfo$/,
-      /\/mounts$/,
-      /\/environ$/,
-      /\/status$/,
-      /\/maps$/,
-      /\/macro$/,
-      /\/README$/,
-      /\/LICENSE$/,
-      /\/VERSION$/,
-      /\/Makefile$/,
-      /\/config\//, // Files in /config/ directories (e.g., /etc/config/openbox)
-    ];
-
-    if (filePatterns.some((pattern) => pattern.test(path))) return true;
-
-    // If it's in /proc or /sys, it's often a file
-    if (path.startsWith('/proc/') || path.startsWith('/sys/')) return true;
-
-    return false;
-  }
-
-  /**
-   * Resolve shell variables in path
-   */
-  private resolveVariables(path: string): string {
-    let resolved = path;
-
-    // Replace ${VAR} and $VAR
-    for (const [varName, value] of Object.entries(SHELL_VARIABLES)) {
-      resolved = resolved.replace(`\${${varName}}`, value);
-      resolved = resolved.replace(`$${varName}`, value);
-    }
-
-    return resolved;
-  }
-
-  /**
-   * Check if a path is valid
-   */
-  private isValidPath(path: string): boolean {
-    // Must start with /
-    if (!path.startsWith('/')) return false;
-
-    // Must not contain spaces or special chars (except allowed ones)
-    if (!/^[/\w\-.]+$/.test(path)) return false;
-
-    // Must not be too short
-    if (path.length < 4) return false;
-
-    // Exclude obvious directory-only paths (no file extension, ends with /)
-    if (path.endsWith('/')) return false;
-
-    // Exclude paths that are clearly directories (common directory patterns)
-    const dirPatterns = [
-      /\/bin$/,
-      /\/sbin$/,
-      /\/lib$/,
-      /\/usr$/,
-      /\/etc$/,
-      /\/var$/,
-      /\/tmp$/,
-      /\/opt$/,
-      /\/home$/,
-      /\/root$/,
-      /\/dev$/,
-      /\/proc$/,
-      /\/sys$/,
-      /\/mnt$/,
-      /\/media$/,
-      /\/srv$/,
-      /\/run$/,
-      /\/boot$/,
-      /\/3rd$/,
-      /\/3rd_rw$/,
-      /\/basic$/,
-      /\/perm$/,
-      /\/persist$/,
-      /\/data$/,
-      /\/cache$/,
-      /\/vendor$/,
-      /\/system$/,
-    ];
-
-    if (dirPatterns.some((pattern) => pattern.test(path))) return false;
-
-    return true;
+    return {
+      extracted: Array.from(extractedPaths),
+      generated: Array.from(generatedPaths),
+    };
   }
 
   /**
@@ -1148,115 +959,320 @@ export class FileExplorationService {
    * @param results Optional array of results. If not provided, uses current session results
    */
   public buildFileTree(results?: FileAnalysis[]): TreeNode[] {
-    // Use provided results or fall back to session results
-    const fileResults =
-      results ||
-      (this.session ? Array.from(this.session.results.values()) : []);
+    return this.treeBuilder.buildFileTree(
+      results || (this.session ? Array.from(this.session.results.values()) : [])
+    );
+  }
 
-    if (fileResults.length === 0) {
-      return [];
+  /**
+   * Check if there's a persisted session that can be resumed
+   */
+  public hasPersistedSession(): boolean {
+    const loaded = this.scanPersistence.loadSession();
+    return loaded !== null;
+  }
+
+  /**
+   * Get resume dialog data if a persisted session exists
+   */
+  public getResumeDialogData() {
+    return this.scanPersistence.getResumeDialogData();
+  }
+
+  /**
+   * Resume exploration from a persisted session
+   */
+  public resumeFromPersistedSession(): boolean {
+    const persistedSession = this.scanPersistence.loadSession();
+
+    if (!persistedSession) {
+      this.consoleService.error(
+        'No persisted session found',
+        undefined,
+        'FileExploration'
+      );
+      return false;
     }
 
-    const root: TreeNode = {
-      name: '',
-      path: '',
-      type: 'directory',
-      level: -1,
-      children: [],
-      isExpanded: true,
+    // Stop current session if running
+    if (this.isScanning) {
+      this.stopExploration();
+    }
+
+    // Restore session from persisted data
+    this.session = this.scanPersistence.deserializeSession(persistedSession);
+
+    if (!this.session) {
+      this.consoleService.error(
+        'Failed to deserialize session',
+        undefined,
+        'FileExploration'
+      );
+      return false;
+    }
+
+    // Set status to paused (user can resume manually)
+    this.session.status = 'paused';
+    this.isScanning = false;
+    this.filesSinceLastSave = 0;
+
+    // ✅ Initialize variable resolver session
+    this.variableResolver.initSession(this.session.id);
+
+    // ✅ Restore variables if they exist
+    if (this.session.variables && this.session.variables.size > 0) {
+      const variablesMap = this.variableResolver.getVariables(this.session.id);
+
+      // Restore all variables from persisted session
+      for (const [varName, values] of this.session.variables.entries()) {
+        variablesMap.set(varName, values);
+      }
+
+      this.consoleService.info(
+        `Restored ${this.session.variables.size} variables from persisted session`,
+        'FileExploration'
+      );
+    }
+
+    // ✅ Restore deferred paths if they exist
+    if (this.session.deferredPaths && this.session.deferredPaths.length > 0) {
+      this.variableResolver.restoreDeferredPaths(
+        this.session.id,
+        this.session.deferredPaths
+      );
+
+      this.consoleService.info(
+        `Restored ${this.session.deferredPaths.length} deferred paths from persisted session`,
+        'FileExploration'
+      );
+    }
+
+    // Error files and placeholders are already in the queue automatically
+    // (they were never added to the scanned set because result.status === 'error' or isPlaceholder)
+    // Count how many errors/placeholders are in the queue for informational purposes
+    const errorFilesInQueue = Array.from(this.session.results.values()).filter(
+      (r) =>
+        r.status === 'error' &&
+        this.session &&
+        this.session.queue.includes(r.path)
+    ).length;
+
+    const placeholdersInQueue = Array.from(
+      this.session.results.values()
+    ).filter(
+      (r) =>
+        r.isPlaceholder && this.session && this.session.queue.includes(r.path)
+    ).length;
+
+    if (errorFilesInQueue > 0) {
+      this.consoleService.info(
+        `${errorFilesInQueue} failed files will be retried automatically (not in scanned set)`,
+        'FileExploration'
+      );
+    }
+
+    if (placeholdersInQueue > 0) {
+      this.consoleService.info(
+        `${placeholdersInQueue} placeholder files (deferred paths) will be analyzed when variables are resolved`,
+        'FileExploration'
+      );
+    }
+
+    // Emit session
+    this.sessionSubject.next(this.session);
+    this.updateStats();
+
+    this.consoleService.info(
+      `Resumed session ${this.session.id} with ${this.session.results.size} results and ${this.session.queue.length} queued paths`,
+      'FileExploration'
+    );
+
+    return true;
+  }
+
+  /**
+   * Clear persisted session from storage
+   */
+  public clearPersistedSession(): void {
+    this.scanPersistence.clearSession();
+    this.consoleService.info('Cleared persisted session', 'FileExploration');
+  }
+
+  /**
+   * Get current error info from error detector
+   */
+  public getErrorInfo() {
+    return this.errorDetector.getErrorInfo();
+  }
+
+  /**
+   * Fetch content for a file on-demand (used after resume when content is missing)
+   */
+  public async fetchFileContent(path: string): Promise<string | null> {
+    try {
+      const scanResult = await this.fileScanner.scanFile(path);
+
+      if (scanResult.status === 'success' && scanResult.content) {
+        // Update the result in session with content
+        if (this.session) {
+          const existingResult = this.session.results.get(path);
+          if (existingResult) {
+            existingResult.content = scanResult.content;
+            existingResult.size = scanResult.content.length;
+            this.session.results.set(path, existingResult);
+          }
+        }
+
+        return scanResult.content;
+      }
+
+      return null;
+    } catch (error) {
+      this.consoleService.error(
+        `Failed to fetch content for ${path}`,
+        error as Error,
+        'FileExploration'
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Save current session to dev-server
+   * Automatically uses 'create' for first save, 'merge' for subsequent saves
+   */
+  private saveSessionToServer(): void {
+    if (!this.currentSessionId || !this.session) {
+      this.consoleService.warn(
+        'Cannot save session: sessionId or session is null',
+        'FileExploration'
+      );
+      return;
+    }
+
+    // Prevent concurrent saves
+    if (this.isSaving) {
+      this.consoleService.debug(
+        'Save already in progress, skipping',
+        'FileExploration'
+      );
+      return;
+    }
+
+    // Auto-determine action: 'create' for first save, 'merge' for subsequent saves
+    const actualAction = this.sessionSavedOnce ? 'merge' : 'create';
+
+    // Get all variables for this session as Map
+    const variablesMap = this.variableResolver.getVariables(this.session.id);
+
+    // Convert Map<string, VariableValue[]> to Record<string, VariableValue[]>
+    // Keep ALL values for each variable (not just the first one)
+    const variables: Record<string, VariableValue[]> = {};
+    variablesMap.forEach((values, name) => {
+      variables[name] = values; // Keep all values with their metadata
+    });
+
+    // Get deferred paths with full metadata
+    const deferredPaths = this.variableResolver.getDeferredPaths(
+      this.session.id
+    );
+
+    // ✅ Incremental Save: Only send new results since last save
+    const allResults = Array.from(this.session.results.values());
+    const newResults = allResults.slice(this.lastSavedResultCount);
+
+    if (newResults.length === 0 && this.sessionSavedOnce) {
+      this.consoleService.debug(
+        `No new results to save (total: ${allResults.length}, lastSaved: ${this.lastSavedResultCount})`,
+        'FileExploration'
+      );
+      return;
+    }
+
+    this.consoleService.debug(
+      `Saving ${newResults.length} new results (total: ${allResults.length}, lastSaved: ${this.lastSavedResultCount})`,
+      'FileExploration'
+    );
+
+    // ✅ Strip binary content from results to reduce payload size
+    // Binary files are never displayed and don't need content stored
+    const newResultsWithoutBinaryContent = newResults.map((result) => {
+      if (result.isBinary) {
+        // Remove content from binary files
+        return {
+          ...result,
+          content: undefined, // Strip binary content
+          previewLines: [], // No preview needed
+        };
+      }
+      return result;
+    });
+
+    // ✅ Also strip binary content from ALL results in session (not just new ones)
+    const allResultsWithoutBinaryContent = Array.from(
+      this.session.results.entries()
+    ).map(([path, result]) => {
+      if (result.isBinary) {
+        return [
+          path,
+          {
+            ...result,
+            content: undefined,
+            previewLines: [],
+          },
+        ];
+      }
+      return [path, result];
+    });
+
+    // Create serialized session for JSON transport
+    const serializedSession = {
+      ...this.session,
+      results: allResultsWithoutBinaryContent, // ✅ Binary content stripped from all results
+      scanned: Array.from(this.session.scanned),
+      variables: variables, // Already a Record
     };
 
-    fileResults.forEach((file) => {
-      const parts = file.path.split('/').filter((p) => p);
-      let currentNode = root;
+    // Prepare data for HTTP transmission - only new results
+    const sessionData = {
+      results: newResultsWithoutBinaryContent,
+      session: serializedSession as unknown as ExplorationSession,
+      variables: variables,
+      deferredPaths: deferredPaths,
+    };
 
-      parts.forEach((part, index) => {
-        const isLastPart = index === parts.length - 1;
+    this.isSaving = true; // Mark save in progress
 
-        if (!currentNode.children) {
-          currentNode.children = [];
-        }
+    this.scanStorage
+      .saveSession(
+        this.currentSessionId,
+        actualAction,
+        sessionData,
+        this.currentRunId
+      )
+      .subscribe({
+        next: (response) => {
+          // Mark session as saved
+          this.sessionSavedOnce = true;
 
-        let childNode = currentNode.children.find(
-          (child) => child.name === part
-        );
+          // ✅ Update last saved count
+          this.lastSavedResultCount = allResults.length;
 
-        if (!childNode) {
-          const fullPath = '/' + parts.slice(0, index + 1).join('/');
+          this.isSaving = false; // Clear save flag
 
-          childNode = {
-            name: part,
-            path: fullPath,
-            type: isLastPart ? 'file' : 'directory',
-            level: index,
-            isExpanded: true, // All directories expanded by default
-            children: isLastPart ? undefined : [],
-          };
-
-          if (isLastPart) {
-            childNode.file = file;
-          }
-
-          currentNode.children.push(childNode);
-        }
-
-        if (!isLastPart) {
-          currentNode = childNode;
-        }
+          this.consoleService.info(
+            `Session saved: ${response.sessionId} (${response.totalFiles} files, ${response.newFiles} new)`,
+            'FileExploration'
+          );
+        },
+        error: (error) => {
+          this.isSaving = false; // Clear save flag on error
+          this.consoleService.error(
+            'Failed to save session to server',
+            error,
+            'FileExploration'
+          );
+        },
       });
-    });
-
-    // Sort and calculate stats
-    if (root.children) {
-      this.sortTreeNodes(root.children);
-      this.calculateStats(root.children);
-    }
-
-    return root.children || [];
-  }
-
-  /**
-   * Sort tree nodes: directories first, then files, both alphabetically
-   */
-  private sortTreeNodes(nodes: TreeNode[]): void {
-    nodes.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === 'directory' ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    });
-
-    nodes.forEach((node) => {
-      if (node.children) {
-        this.sortTreeNodes(node.children);
-      }
-    });
-  }
-
-  /**
-   * Calculate file and directory counts for each directory
-   */
-  private calculateStats(nodes: TreeNode[]): void {
-    nodes.forEach((node) => {
-      if (node.type === 'directory' && node.children) {
-        this.calculateStats(node.children);
-
-        let fileCount = 0;
-        let dirCount = 0;
-
-        node.children.forEach((child) => {
-          if (child.type === 'file') {
-            fileCount++;
-          } else {
-            dirCount++;
-            fileCount += child.fileCount || 0;
-            dirCount += child.directoryCount || 0;
-          }
-        });
-
-        node.fileCount = fileCount;
-        node.directoryCount = dirCount;
-      }
-    });
   }
 }

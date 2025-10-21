@@ -19,4 +19,42 @@
   display: none;
 }
 
+/* Screensaver specific - no scrollbars */
+.screensaver-active {
+  overflow: hidden !important;
+}
+
+/* Hide scrollbar on screensaver overlay - aggressive approach */
+:host ::ng-deep .screensaver-active,
+:host ::ng-deep .screensaver-active *,
+div[class*="screensaver"] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow: hidden !important;
+}
+
+:host ::ng-deep .screensaver-active::-webkit-scrollbar,
+:host ::ng-deep .screensaver-active *::-webkit-scrollbar,
+div[class*="screensaver"]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Force hide scrollbars on body and html when screensaver is active */
+:host-context(.screensaver-active) ::ng-deep body,
+:host-context(.screensaver-active) ::ng-deep html,
+:host-context(.screensaver-active) ::ng-deep * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+:host-context(.screensaver-active) ::ng-deep body::-webkit-scrollbar,
+:host-context(.screensaver-active) ::ng-deep html::-webkit-scrollbar,
+:host-context(.screensaver-active) ::ng-deep *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Screensaver animations - breathe and blur effects (applied in template) */

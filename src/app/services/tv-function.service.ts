@@ -1,9 +1,10 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, interval } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { TvConnectionService } from './tv-connection.service';
 import { ConsoleService } from './console.service';
+import { FileExplorationService } from './file-exploration.service';
 
 export interface FunctionData {
   name: string;
@@ -30,10 +31,14 @@ export class TvFunctionService {
   private functionsSubject = new BehaviorSubject<FunctionData[]>([]);
   public functions$ = this.functionsSubject.asObservable();
 
+  // Lazy-inject FileExplorationService to avoid circular dependency
+  private fileExplorationService?: FileExplorationService;
+
   constructor(
     private http: HttpClient,
     private tvConnectionService: TvConnectionService,
-    private consoleService: ConsoleService
+    private consoleService: ConsoleService,
+    private injector: Injector
   ) {
     this.loadFunctions();
     this.startFunctionMonitoring();
@@ -42,9 +47,20 @@ export class TvFunctionService {
   /**
    * Start monitoring for new functions from TV.
    * Polls every 2 seconds for responsive updates.
+   * Skips polling during active file scans to reduce TV load.
    */
   private startFunctionMonitoring(): void {
     interval(2000).subscribe(() => {
+      // Lazy-load FileExplorationService on first use to avoid circular dependency
+      if (!this.fileExplorationService) {
+        this.fileExplorationService = this.injector.get(FileExplorationService);
+      }
+
+      // Skip function enumeration during active file scans to reduce TV load
+      if (this.fileExplorationService.isScanActive()) {
+        return;
+      }
+
       this.loadFunctions();
     });
   }
@@ -137,10 +153,6 @@ export class TvFunctionService {
   private loadFunctions(): void {
     this.http.get<ApiResponse>('/api/functions').subscribe({
       next: (response: ApiResponse) => {
-        console.log(
-          '[TvFunctionService] HTTP GET response:',
-          response.functions?.length || 0
-        );
         if (response.functions && response.functions.length > 0) {
           const mappedFunctions = response.functions.map(
             (func: FunctionData) => ({
@@ -151,12 +163,7 @@ export class TvFunctionService {
             })
           );
 
-          console.log(
-            '[TvFunctionService] Calling functionsSubject.next() with',
-            mappedFunctions.length
-          );
           this.functionsSubject.next(mappedFunctions);
-          console.log('[TvFunctionService] functionsSubject.next() called');
 
           // Update connection status based on data freshness
           if (response.timestamp) {

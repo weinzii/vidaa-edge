@@ -1,4 +1,50 @@
 <div class="h-screen flex flex-col bg-customGray overflow-hidden">
+  <!-- Browse Mode Banner (Fixed at top) -->
+  <div
+    *ngIf="isBrowseMode"
+    class="flex-shrink-0 bg-blue-900 bg-opacity-50 border-b border-blue-700 px-4 py-3"
+  >
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">👁️</span>
+        <div>
+          <div class="text-blue-300 font-semibold">
+            Browse Mode: {{ browseSessionId }}
+          </div>
+          <div class="text-xs text-gray-400" *ngIf="browseSessionMetadata">
+            {{ browseSessionMetadata.totalFiles }} files •
+            {{ browseSessionMetadata.totalRuns }} runs • Last modified:
+            {{ browseSessionMetadata.lastModified | date : 'short' }}
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button
+          (click)="exitBrowseMode()"
+          class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition-colors"
+        >
+          ❌ Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Banner (Fixed at top) -->
+  <app-error-banner
+    [errorInfo]="errorInfo"
+    [visible]="showErrorBanner"
+    (retry)="handleRetry()"
+    (stopScan)="handleStopAndSave()"
+    (dismiss)="handleDismissError()"
+  ></app-error-banner>
+
+  <!-- Resume Scan Dialog -->
+  <app-resume-scan-dialog
+    [data]="resumeDialogData"
+    [visible]="showResumeDialog"
+    (action)="handleResumeAction($event)"
+  ></app-resume-scan-dialog>
+
   <!-- Header -->
   <div class="flex-shrink-0 bg-purple-900 border-b border-purple-700 shadow-sm">
     <div class="px-4 py-3">
@@ -6,34 +52,48 @@
         File System Explorer
       </h2>
       <div class="flex gap-2 flex-wrap">
+        <!-- Scan Controls (hidden in browse mode) -->
+        <ng-container *ngIf="!isBrowseMode">
+          <button
+            *ngIf="canStart"
+            (click)="startScan()"
+            class="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+          >
+            Start Scan
+          </button>
+          <button
+            *ngIf="isScanning"
+            (click)="pauseScan()"
+            class="px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium transition-colors"
+          >
+            Pause
+          </button>
+          <button
+            *ngIf="isPaused"
+            (click)="resumeScan()"
+            class="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+          >
+            Resume
+          </button>
+          <button
+            *ngIf="!canStart"
+            (click)="stopScan()"
+            class="px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+          >
+            Stop
+          </button>
+        </ng-container>
+
+        <!-- Session Manager Button -->
         <button
-          *ngIf="canStart"
-          (click)="startScan()"
-          class="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+          (click)="showSessionManager = true"
+          class="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
+          title="Manage saved sessions"
         >
-          Start Scan
+          📁 Sessions
         </button>
-        <button
-          *ngIf="isScanning"
-          (click)="pauseScan()"
-          class="px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium transition-colors"
-        >
-          Pause
-        </button>
-        <button
-          *ngIf="isPaused"
-          (click)="resumeScan()"
-          class="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
-        >
-          Resume
-        </button>
-        <button
-          *ngIf="!canStart"
-          (click)="stopScan()"
-          class="px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
-        >
-          Stop
-        </button>
+
+        <!-- Export always available -->
         <button
           *ngIf="results.length > 0"
           (click)="exportResults()"
@@ -45,14 +105,69 @@
     </div>
   </div>
 
+  <!-- Session Manager Modal -->
+  <div
+    *ngIf="showSessionManager"
+    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+    (click)="showSessionManager = false"
+    (keyup.escape)="showSessionManager = false"
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Session Manager"
+  >
+    <div
+      class="bg-gray-900 rounded-lg shadow-2xl w-full max-w-4xl h-3/4 flex flex-col"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+      role="document"
+    >
+      <!-- Modal Header -->
+      <div
+        class="flex justify-between items-center p-4 border-b border-gray-700"
+      >
+        <h3 class="text-xl font-bold text-purple-400">Session Manager</h3>
+        <button
+          (click)="showSessionManager = false"
+          class="text-gray-400 hover:text-white text-2xl leading-none"
+          title="Close"
+        >
+          ×
+        </button>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="flex-1 overflow-hidden">
+        <app-session-manager
+          (browse)="handleBrowseSession($event)"
+          (sessionResumed)="handleSessionResumed()"
+          (sessionDeleted)="handleSessionDeleted($event)"
+        ></app-session-manager>
+      </div>
+    </div>
+  </div>
+
   <!-- Progress -->
   <div
     *ngIf="!canStart"
     class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4 py-3"
   >
     <div class="mb-2 flex items-center justify-between text-sm">
-      <span class="text-gray-300">{{ statusText }}</span>
-      <span class="text-gray-400">{{ progress }}%</span>
+      <span class="text-gray-300">
+        Progress: {{ progress }}% ({{ session?.scannedPaths }}/{{
+          session?.totalPaths
+        }})
+      </span>
+      <span
+        class="px-2 py-0.5 text-xs font-semibold rounded"
+        [class.bg-blue-500]="isScanning"
+        [class.text-white]="isScanning"
+        [class.bg-yellow-500]="isPaused"
+        [class.text-gray-900]="isPaused"
+        [class.bg-green-500]="session?.status === 'completed'"
+      >
+        {{ session?.status || 'idle' }}
+      </span>
     </div>
     <div class="w-full bg-gray-700 rounded-full h-2">
       <div
@@ -67,7 +182,7 @@
     *ngIf="results.length > 0"
     class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4 py-3"
   >
-    <div class="grid grid-cols-5 gap-4 text-center">
+    <div class="grid grid-cols-8 gap-4 text-center">
       <div>
         <div class="text-2xl font-bold text-green-400">{{ successCount }}</div>
         <div class="text-xs text-gray-400">Success</div>
@@ -88,96 +203,147 @@
         <div class="text-2xl font-bold text-orange-400">{{ queueSize }}</div>
         <div class="text-xs text-gray-400">Queued</div>
       </div>
+      <!-- Discovery Method Breakdown -->
+      <div class="border-l border-gray-600 pl-4">
+        <div class="text-2xl font-bold text-blue-300">{{ knownListCount }}</div>
+        <div class="text-xs text-gray-400">📌 Known</div>
+      </div>
+      <div>
+        <div class="text-2xl font-bold text-purple-300">
+          {{ extractedCount }}
+        </div>
+        <div class="text-xs text-gray-400">🔗 Extracted</div>
+      </div>
+      <div>
+        <div class="text-2xl font-bold text-orange-300">
+          {{ generatedCount }}
+        </div>
+        <div class="text-xs text-gray-400">🔧 Generated</div>
+      </div>
     </div>
   </div>
 
-  <!-- Filters -->
+  <!-- View Tabs + Filters + Search (Combined Row) -->
   <div
     *ngIf="results.length > 0"
-    class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4 py-3"
+    class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4"
   >
-    <div class="flex flex-wrap items-center gap-4">
-      <div class="flex gap-4">
+    <div class="flex items-center justify-between gap-4 py-2">
+      <!-- Left: View Tabs -->
+      <div class="flex gap-2">
+        <button
+          (click)="switchView('list')"
+          class="px-4 py-1.5 text-sm font-medium transition-colors border-b-2"
+          [ngClass]="{
+            'text-orange-400 border-orange-500': activeView === 'list',
+            'text-gray-400 border-transparent hover:text-gray-200':
+              activeView !== 'list'
+          }"
+        >
+          List View
+        </button>
+        <button
+          (click)="switchView('tree')"
+          class="px-4 py-1.5 text-sm font-medium transition-colors border-b-2"
+          [ngClass]="{
+            'text-orange-400 border-orange-500': activeView === 'tree',
+            'text-gray-400 border-transparent hover:text-gray-200':
+              activeView !== 'tree'
+          }"
+        >
+          Tree View
+        </button>
+        <button
+          (click)="switchView('variables')"
+          class="px-4 py-1.5 text-sm font-medium transition-colors border-b-2"
+          [ngClass]="{
+            'text-orange-400 border-orange-500': activeView === 'variables',
+            'text-gray-400 border-transparent hover:text-gray-200':
+              activeView !== 'variables'
+          }"
+        >
+          Variables
+        </button>
+      </div>
+
+      <!-- Middle: Status Filters -->
+      <div class="flex gap-3">
         <label
-          class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"
+          class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer"
         >
           <input
             type="checkbox"
             [(ngModel)]="showSuccess"
+            (change)="applyFilters()"
             class="rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500"
           />
           Success
         </label>
         <label
-          class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"
+          class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer"
         >
           <input
             type="checkbox"
             [(ngModel)]="showFailed"
+            (change)="applyFilters()"
             class="rounded border-gray-600 bg-gray-700 text-red-500 focus:ring-red-500"
           />
           Failed
         </label>
         <label
-          class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"
+          class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer"
         >
           <input
             type="checkbox"
             [(ngModel)]="showText"
+            (change)="applyFilters()"
             class="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
           />
           Text
         </label>
         <label
-          class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"
+          class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer"
         >
           <input
             type="checkbox"
             [(ngModel)]="showBinary"
+            (change)="applyFilters()"
             class="rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-purple-500"
           />
           Binary
         </label>
       </div>
-      <div class="flex-1 min-w-[200px]">
+
+      <!-- Right: Search -->
+      <div class="w-64 relative">
         <input
           type="text"
           [(ngModel)]="searchTerm"
+          (ngModelChange)="applyFilters()"
           placeholder="Search files..."
-          class="w-full px-3 py-1.5 text-sm bg-gray-700 border border-gray-600 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          class="w-full px-3 py-1.5 pr-8 text-xs bg-gray-700 border border-gray-600 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
+        <button
+          *ngIf="searchTerm"
+          (click)="searchTerm = ''; applyFilters()"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+          title="Clear search"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
       </div>
-    </div>
-  </div>
-
-  <!-- View Tabs -->
-  <div
-    *ngIf="results.length > 0"
-    class="flex-shrink-0 bg-customGray-light border-b border-gray-700 px-4"
-  >
-    <div class="flex gap-2">
-      <button
-        (click)="switchView('list')"
-        class="px-4 py-2 text-sm font-medium transition-colors border-b-2"
-        [ngClass]="{
-          'text-orange-400 border-orange-500': activeView === 'list',
-          'text-gray-400 border-transparent hover:text-gray-200':
-            activeView !== 'list'
-        }"
-      >
-        List View
-      </button>
-      <button
-        (click)="switchView('tree')"
-        class="px-4 py-2 text-sm font-medium transition-colors border-b-2"
-        [ngClass]="{
-          'text-orange-400 border-orange-500': activeView === 'tree',
-          'text-gray-400 border-transparent hover:text-gray-200':
-            activeView !== 'tree'
-        }"
-      >
-        Tree View
-      </button>
     </div>
   </div>
 
@@ -189,19 +355,13 @@
     <div
       class="flex flex-col min-h-0 bg-customGray-light border border-gray-700 rounded-lg shadow"
     >
-      <div
-        *ngIf="filteredResults.length > 0"
-        class="flex-shrink-0 px-4 py-2 bg-purple-900 border-b border-purple-700"
-      >
-        <h3 class="text-sm font-semibold text-purple-200">
-          Found Files ({{ filteredResults.length }})
-        </h3>
-      </div>
       <app-file-list
         class="flex-1 min-h-0"
         [results]="filteredResults"
         [selectedFile]="selectedFile"
+        [autoScrollEnabled]="autoScrollEnabled"
         (fileSelected)="selectFile($event)"
+        (autoScrollToggled)="autoScrollEnabled = $event"
       ></app-file-list>
     </div>
     <div
@@ -211,8 +371,12 @@
         class="flex-1 min-h-0"
         [selectedFile]="selectedFile"
         [viewMode]="'list'"
+        [allResults]="results"
+        [isLoadingContent]="isLoadingContent"
+        [isBrowseMode]="isBrowseMode"
         (fileSelected)="selectFile($event)"
         (copyRequested)="copyToClipboard($event)"
+        (contentRefreshRequested)="onContentRefreshRequested()"
       ></app-file-details>
     </div>
   </div>
@@ -225,12 +389,6 @@
     <div
       class="flex flex-col min-h-0 bg-customGray-light border border-gray-700 rounded-lg shadow"
     >
-      <div
-        *ngIf="treeNodes.length > 0"
-        class="flex-shrink-0 px-4 py-2 bg-purple-900 border-b border-purple-700"
-      >
-        <h3 class="text-sm font-semibold text-purple-200">Directory Tree</h3>
-      </div>
       <app-file-tree
         class="flex-1 min-h-0"
         [treeNodes]="treeNodes"
@@ -246,9 +404,21 @@
         class="flex-1 min-h-0"
         [selectedFile]="selectedFile"
         [viewMode]="'tree'"
+        [allResults]="results"
+        [isLoadingContent]="isLoadingContent"
+        [isBrowseMode]="isBrowseMode"
         (fileSelected)="selectFile($event)"
         (copyRequested)="copyToClipboard($event)"
+        (contentRefreshRequested)="onContentRefreshRequested()"
       ></app-file-details>
     </div>
+  </div>
+
+  <!-- Variables View -->
+  <div *ngIf="activeView === 'variables'" class="flex-1 min-h-0">
+    <app-variables-view
+      [variables]="variables"
+      [deferredPaths]="deferredPaths"
+    ></app-variables-view>
   </div>
 </div>

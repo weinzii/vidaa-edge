@@ -2,6 +2,12 @@
  * Models for file system exploration
  */
 
+export interface ScanHistoryEntry {
+  runId: number;
+  timestamp: number;
+  status: 'success' | 'error' | 'not-found';
+}
+
 export interface FileAnalysis {
   path: string;
   status: 'success' | 'access-denied' | 'not-found' | 'error';
@@ -20,6 +26,7 @@ export interface FileAnalysis {
 
   // Path discovery
   extractedPaths: string[];
+  generatedPaths?: string[]; // Paths generated through variable resolution (e.g., ${VAR} -> value)
   ignoredPaths?: string[]; // Paths that were extracted but already in queue/scanned
 
   // Metadata
@@ -27,6 +34,35 @@ export interface FileAnalysis {
   discoveryMethod: 'known-list' | 'extracted' | 'generated';
   timestamp: Date;
   error?: string;
+  tvProcessingTimeMs?: number; // Time TV took to read file (in ms)
+  isPlaceholder?: boolean; // True if this is a placeholder for a discovered path (not yet scanned)
+
+  // Session persistence (for multi-run tracking)
+  scanHistory?: ScanHistoryEntry[]; // Track which runs scanned this file
+
+  // Debug info
+  debugLog?: DebugLogEntry[]; // Processing log for this file
+}
+
+export interface DebugLogEntry {
+  timestamp: Date;
+  level: 'info' | 'debug' | 'warn' | 'error';
+  message: string;
+  category?: string;
+}
+
+export interface VariableValue {
+  name: string;
+  value: string;
+  discoveredIn: string;
+  confidence: 'explicit' | 'inferred' | 'conditional';
+}
+
+export interface DeferredPath {
+  template: string;
+  variables: string[];
+  discoveredIn: string;
+  priority: number;
 }
 
 export interface ExplorationSession {
@@ -49,7 +85,22 @@ export interface ExplorationSession {
   // Single queue: only discovered and explicit paths (no blind probing)
   queue: string[];
 
+  // Variable tracking for template resolution
+  variables: Map<string, VariableValue[]>; // varName -> possible values
+  deferredPaths: DeferredPath[]; // Templates waiting for variable values
+
   scanned: Set<string>;
+}
+
+/**
+ * Serialized version of ExplorationSession for JSON transport
+ * Maps and Sets are converted to Arrays/Objects for JSON compatibility
+ */
+export interface SerializedExplorationSession
+  extends Omit<ExplorationSession, 'results' | 'scanned' | 'variables'> {
+  results: [string, FileAnalysis][]; // Map serialized as array of [key, value] tuples
+  scanned: string[]; // Set serialized as array
+  variables: Record<string, VariableValue[]>; // Map serialized as Record object
 }
 
 export interface ExplorationStats {

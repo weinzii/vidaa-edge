@@ -30,6 +30,7 @@ export interface CommandResponse {
   data?: FunctionResult;
   error?: string | null;
   function?: string;
+  tvProcessingTimeMs?: number; // Time TV took to process command (in ms)
 }
 
 /**
@@ -40,10 +41,13 @@ export interface CommandResponse {
   providedIn: 'root',
 })
 export class TvCommandService {
-  private readonly COMMAND_TIMEOUT = 10000; // 10 seconds
+  private readonly COMMAND_TIMEOUT = 20000; // 10 seconds
   private readonly CUSTOM_CODE_TIMEOUT = 30000; // 30 seconds
   private readonly POLL_INTERVAL = 500; // 500ms for responsive UI
   private readonly MAX_CODE_LENGTH = 50000; // 50KB max for custom code
+
+  // Counter to ensure unique command IDs even within same millisecond
+  private commandIdCounter = 0;
 
   private commandQueueSubject = new BehaviorSubject<CommandQueueItem[]>([]);
   public commandQueue$ = this.commandQueueSubject.asObservable();
@@ -53,6 +57,15 @@ export class TvCommandService {
     private consoleService: ConsoleService,
     private ngZone: NgZone
   ) {}
+
+  /**
+   * Generate unique command ID using timestamp + counter
+   * Ensures uniqueness even for commands created in same millisecond
+   */
+  private generateCommandId(): string {
+    this.commandIdCounter = (this.commandIdCounter + 1) % 10000; // Reset after 10000
+    return `${Date.now()}-${this.commandIdCounter.toString().padStart(4, '0')}`;
+  }
 
   /**
    * Execute a function on the TV remotely.
@@ -78,7 +91,7 @@ export class TvCommandService {
       });
     }
 
-    const commandId = Date.now().toString();
+    const commandId = this.generateCommandId();
 
     return this.http
       .post<CommandResponse>('/api/remote-command', {
@@ -99,6 +112,59 @@ export class TvCommandService {
 
           this.consoleService.error(
             `executeFunction failed for '${functionName}'`,
+            error,
+            'TvCommand'
+          );
+          throw new Error(errorMessage);
+        })
+      );
+  }
+
+  /**
+   * Execute a function on the TV remotely with full metadata (including TV processing time).
+   * Sends command to server and polls for result.
+   * @param functionName Name of function to execute
+   * @param parameters Function parameters
+   * @returns Observable with CommandResponse (includes tvProcessingTimeMs)
+   * @throws Error if function name is empty or invalid
+   */
+  public executeFunctionWithMetadata(
+    functionName: string,
+    parameters: Record<string, unknown> | unknown[] = {}
+  ): Observable<CommandResponse> {
+    // Validate input
+    if (!functionName || functionName.trim().length === 0) {
+      this.consoleService.error(
+        'Function name cannot be empty',
+        new Error('Invalid function name'),
+        'TvCommand'
+      );
+      return new Observable((observer) => {
+        observer.error(new Error('Function name cannot be empty'));
+      });
+    }
+
+    const commandId = this.generateCommandId();
+
+    return this.http
+      .post<CommandResponse>('/api/remote-command', {
+        id: commandId,
+        function: functionName,
+        parameters: parameters,
+      })
+      .pipe(
+        timeout(30000),
+        switchMap((response: CommandResponse) =>
+          this.pollForResultWithMetadata(response.commandId)
+        ),
+        catchError((error) => {
+          const errorMessage =
+            error.name === 'TimeoutError'
+              ? `Command timeout - Server did not respond within 30 seconds`
+              : `Command execution failed: ${error.message || 'Unknown error'}`;
+
+          this.consoleService.error(
+            `executeFunctionWithMetadata failed for '${functionName}'`,
             error,
             'TvCommand'
           );
@@ -144,7 +210,7 @@ export class TvCommandService {
       'TvCommand'
     );
 
-    const commandId = Date.now().toString();
+    const commandId = this.generateCommandId();
 
     const customCommand = {
       id: commandId,
@@ -191,9 +257,20 @@ export class TvCommandService {
     return new Observable((observer) => {
       let pollCount = 0;
       const maxPolls = Math.ceil(timeoutDuration / this.POLL_INTERVAL);
+      let currentSubscription: { unsubscribe: () => void } | null = null; // Track active HTTP subscription
+
+      const cleanup = () => {
+        clearTimeout(timeoutHandle);
+        clearInterval(pollInterval);
+        // ✅ FIX: Unsubscribe active HTTP request
+        if (currentSubscription) {
+          currentSubscription.unsubscribe();
+          currentSubscription = null;
+        }
+      };
 
       const timeoutHandle = setTimeout(() => {
-        clearInterval(pollInterval);
+        cleanup();
         this.ngZone.run(() => {
           this.consoleService.warn(
             `Command ${commandId} timed out after ${pollCount} polls (${timeoutDuration}ms)`,
@@ -212,13 +289,16 @@ export class TvCommandService {
       const pollInterval = setInterval(() => {
         pollCount++;
 
-        this.http
+        // ✅ FIX: Store subscription so we can unsubscribe on cleanup
+        currentSubscription = this.http
           .get<CommandResponse>(`/api/execute-response/${commandId}`)
           .subscribe({
             next: (response: CommandResponse) => {
+              currentSubscription = null; // Clear after response
+
               if (response.waiting) {
-                // Log progress every 5 polls
-                if (pollCount % 5 === 0) {
+                // Log progress every 10 polls
+                if (pollCount % 10 === 0) {
                   this.consoleService.debug(
                     `Still waiting for command ${commandId} (poll ${pollCount}/${maxPolls})`,
                     'TvCommand'
@@ -227,13 +307,15 @@ export class TvCommandService {
                 return; // Keep polling
               }
 
-              clearTimeout(timeoutHandle);
-              clearInterval(pollInterval);
+              cleanup();
 
               this.ngZone.run(() => {
                 if (response.success) {
+                  const tvTime = response.tvProcessingTimeMs
+                    ? ` (TV: ${response.tvProcessingTimeMs}ms)`
+                    : '';
                   this.consoleService.info(
-                    `Command ${commandId} completed successfully after ${pollCount} polls`,
+                    `Command ${commandId} completed successfully after ${pollCount} polls${tvTime}`,
                     'TvCommand'
                   );
                   observer.next(response.data);
@@ -250,8 +332,8 @@ export class TvCommandService {
               });
             },
             error: (error) => {
-              clearTimeout(timeoutHandle);
-              clearInterval(pollInterval);
+              currentSubscription = null; // Clear after error
+              cleanup();
               this.ngZone.run(() => {
                 this.consoleService.error(
                   `HTTP error while polling for command ${commandId}`,
@@ -269,6 +351,125 @@ export class TvCommandService {
             },
           });
       }, this.POLL_INTERVAL);
+
+      // ✅ FIX: Return teardown logic for Observable unsubscribe
+      return () => cleanup();
+    });
+  }
+
+  /**
+   * Poll for command execution result with full metadata.
+   * Returns the complete CommandResponse including tvProcessingTimeMs.
+   * @param commandId ID of command to poll for
+   * @param timeoutMs Timeout in milliseconds (optional)
+   * @returns Observable with full CommandResponse
+   */
+  private pollForResultWithMetadata(
+    commandId: string,
+    timeoutMs?: number
+  ): Observable<CommandResponse> {
+    const timeoutDuration = timeoutMs || this.COMMAND_TIMEOUT;
+
+    return new Observable((observer) => {
+      let pollCount = 0;
+      const maxPolls = Math.ceil(timeoutDuration / this.POLL_INTERVAL);
+      let currentSubscription: { unsubscribe: () => void } | null = null; // Track active HTTP subscription
+
+      const cleanup = () => {
+        clearTimeout(timeoutHandle);
+        clearInterval(pollInterval);
+        // ✅ FIX: Unsubscribe active HTTP request
+        if (currentSubscription) {
+          currentSubscription.unsubscribe();
+          currentSubscription = null;
+        }
+      };
+
+      const timeoutHandle = setTimeout(() => {
+        cleanup();
+        this.ngZone.run(() => {
+          this.consoleService.warn(
+            `Command ${commandId} timed out after ${pollCount} polls (${timeoutDuration}ms)`,
+            'TvCommand'
+          );
+          observer.error(
+            new Error(
+              `Command timeout - no response received within ${
+                timeoutDuration / 1000
+              } seconds`
+            )
+          );
+        });
+      }, timeoutDuration);
+
+      const pollInterval = setInterval(() => {
+        pollCount++;
+
+        // ✅ FIX: Store subscription so we can unsubscribe on cleanup
+        currentSubscription = this.http
+          .get<CommandResponse>(`/api/execute-response/${commandId}`)
+          .subscribe({
+            next: (response: CommandResponse) => {
+              currentSubscription = null; // Clear after response
+
+              if (response.waiting) {
+                // Log progress every 10 polls
+                if (pollCount % 10 === 0) {
+                  this.consoleService.debug(
+                    `Still waiting for command ${commandId} (poll ${pollCount}/${maxPolls})`,
+                    'TvCommand'
+                  );
+                }
+                return; // Keep polling
+              }
+
+              cleanup();
+
+              this.ngZone.run(() => {
+                if (response.success) {
+                  const tvTime = response.tvProcessingTimeMs
+                    ? ` (TV: ${response.tvProcessingTimeMs}ms)`
+                    : '';
+                  this.consoleService.info(
+                    `Command ${commandId} completed successfully after ${pollCount} polls${tvTime}`,
+                    'TvCommand'
+                  );
+                  observer.next(response); // Return full response, not just data
+                } else {
+                  const errorMsg = response.error || 'Unknown error';
+                  this.consoleService.error(
+                    `Command ${commandId} failed: ${errorMsg}`,
+                    new Error(errorMsg),
+                    'TvCommand'
+                  );
+                  observer.error(new Error(errorMsg));
+                }
+                observer.complete();
+              });
+            },
+            error: (error) => {
+              currentSubscription = null; // Clear after error
+              cleanup();
+              this.ngZone.run(() => {
+                this.consoleService.error(
+                  `HTTP error while polling for command ${commandId}`,
+                  error,
+                  'TvCommand'
+                );
+                observer.error(
+                  new Error(
+                    `Failed to poll for result: ${
+                      error.message || 'Network error'
+                    }`
+                  )
+                );
+              });
+            },
+          });
+      }, this.POLL_INTERVAL);
+
+      // ✅ FIX: Return teardown logic for Observable unsubscribe
+      return () => cleanup();
     });
   }
 

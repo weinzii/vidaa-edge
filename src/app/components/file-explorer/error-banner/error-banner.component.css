@@ -1,0 +1,20 @@
+/* Animation for slide down effect */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+:host {
+  display: block;
+}
+
+/* Apply animation when visible */
+div[class*='fixed'] {
+  animation: slideDown 0.3s ease-out;
+}

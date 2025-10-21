@@ -2,6 +2,19 @@
  * Configuration file for file system exploration paths.
  * Add or modify paths here to customize the scanning behavior.
  */
+/**
+ * Maximum file size to read (in bytes)
+ * Files larger than this will be marked but not fully read
+ */
+export const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
+
+/**
+ * Scan rate limiting
+ */
+export const SCAN_CONFIG = {
+  batchSize: 5, // Number of files to scan in parallel
+  delayBetweenFiles: 100, // ms delay between batches
+};
 
 export interface PathCategory {
   name: string;
@@ -130,16 +143,18 @@ export const PATH_EXTRACTION_PATTERNS = {
   absolutePaths: /(?:^|[\s"'=])(\/(?:[\w\-.]+\/?)+)/g,
 
   // Shell export statements: export VAR=/path
-  exports: /export\s+\w+=([\w\-.\/]+)/g,
+  exports: /export\s+\w+=([\w\-./]+)/g,
 
   // Shell variables with paths: ${VAR}/path or $VAR/path
-  shellVars: /\$\{?[\w_]+\}?(\/[\w\-.\/${}]+)/g,
+  shellVars: /\$\{?[\w_]+\}?(\/[\w\-./${}]+)/g,
 
-  // Source/include statements: source /path/to/file or source ${VAR}/path
-  sources: /(?:source|include|require)\s+([\w\-.\/${}]+)/g,
+  // Source/include statements: source /path/to/file or source ${VAR}/path or source /path/"$VAR"/file
+  // Matches everything after source until whitespace/semicolon/ampersand
+  // Examples: source /etc/init.d/"$CHIP_TYPE"/init.rc & or source ${VAR}/file
+  sources: /(?:source|include|require)\s+([^\s;&]+)/g,
 
   // File test conditions: [ -f /path/to/file ] or [ -f ${VAR}/path ]
-  fileTests: /\[\s*-[a-z]\s+([\w\-.\/${}]+)\s*\]/g,
+  fileTests: /\[\s*-[a-z]\s+([\w\-./${}]+)\s*\]/g,
 
   // LD_LIBRARY_PATH and PATH entries (split by colon)
   ldPath: /(?:LD_LIBRARY_PATH|PATH)=[^\n]*/g,
@@ -153,14 +168,45 @@ export const PATH_EXTRACTION_PATTERNS = {
   // passwd format: extract home directories (6th field)
   passwdHomes: /^[^:]+:[^:]+:\d+:\d+:[^:]*:([^:]+):/gm,
 
-  // Bash loops with paths: for VAR in `ls ${PATH}`;
-  bashLoops: /for\s+\w+\s+in\s+`[^`]*\$\{?[\w_]+\}?([^`]+)`/g,
+  // Bash loops with paths: for VAR in `ls /path` or for VAR in `cat /path` etc.
+  // Captures BOTH the command binary AND the path argument
+  // Example: for INI_3RD in `${LINUX_ROOTFS_PATH}/bin/ls ${LINUX_BASIC_PATH}/3rd_ini`
+  // Will extract: /bin/ls AND /basic/3rd_ini (after variable resolution)
+  bashLoops:
+    /for\s+\w+\s+in\s+`(?:\$\{[^}]+\})?(\/[\w\-./]+)?\s*([/\w\-.${}]+)/g,
+
+  // Command arguments: ls /path, cat /path, grep pattern /path, etc.
+  // Matches common commands followed by absolute path arguments
+  // Fixed: Added word boundary and better path capture to avoid including command in path
+  commandArgs:
+    /\b(?:ls|cat|grep|find|test|stat|file|head|tail|more|less)\s+(?:-[a-z]+\s+)*([/][\w\-./{}$]+?)(?:\s|$|;|\||&)/gm,
 
   // Output redirections: echo "text" > /path or command >> /path
-  redirections: /(?:>>?|<)\s*([\/\w\-.${}]+)/g,
+  redirections: /(?:>>?|<)\s*([/\w\-.${}]+)/g,
 
   // Pipe to tee: command | tee /path
-  teeCommands: /\|\s*tee\s+(?:-a\s+)?([\/\w\-.${}]+)/g,
+  teeCommands: /\|\s*tee\s+(?:-a\s+)?([/\w\-.${}]+)/g,
+};
+
+/**
+ * Regex patterns for extracting variable definitions from shell scripts.
+ * Used to discover and track variable values for template resolution.
+ */
+export const VARIABLE_EXTRACTION_PATTERNS = {
+  // export VAR=value or VAR=value
+  // Captures everything including backticks and $(...) command substitutions
+  // Examples: VAR=value, VAR=`command`, VAR=$(command), VAR="${VAR}/path"
+  definitions: /^(\s*)(export\s+)?(\w+)=(.+?)(?:\s*[;#]|$)/gm,
+
+  // Conditional tests: [ "$VAR" == "value" ] or [[ $VAR = "value" ]]
+  conditionalTests:
+    /\[\s*["']?\$\{?(\w+)\}?["']?\s*[=!]=\s*["']([^"'\]]+)["']/g,
+
+  // source ${VAR}/file or . ${VAR}/file
+  sourceWithVars: /(?:source|\.)[\s]+\$\{?(\w+)\}?([^\s;]*)/g,
+
+  // if [ -d "${VAR}" ]; then
+  conditionalChecks: /\[\s*-[a-z]\s+["']?\$\{?(\w+)\}?([^"'\]]*)/g,
 };
 
 /**
@@ -209,6 +255,35 @@ export const TEXT_FILE_EXTENSIONS = [
 ];
 
 /**
+ * Files to exclude from variable extraction
+ * Variables discovered in these files will be filtered out
+ */
+export const VARIABLE_EXCLUSION_PATTERNS = [
+  'mapping.ini', // Exclude all variables from mapping.ini files
+  '/proc/cmdline', // Exclude kernel boot parameters (not shell variables)
+];
+
+/**
+ * Check if a file should be excluded from variable extraction
+ * @param discoveredIn - The file path where the variable was discovered
+ * @returns true if the file matches any exclusion pattern
+ */
+export function shouldExcludeVariableSource(discoveredIn: string): boolean {
+  return VARIABLE_EXCLUSION_PATTERNS.some((pattern) => {
+    const lowerPath = discoveredIn.toLowerCase();
+    const lowerPattern = pattern.toLowerCase();
+
+    // If pattern starts with /, it's a full path match
+    if (lowerPattern.startsWith('/')) {
+      return lowerPath === lowerPattern || lowerPath.endsWith(lowerPattern);
+    }
+
+    // Otherwise, it's a filename pattern (endsWith match)
+    return lowerPath.endsWith(lowerPattern);
+  });
+}
+
+/**
  * Binary file signatures (magic bytes)
  */
 export const BINARY_SIGNATURES: Record<string, string> = {
@@ -220,19 +295,4 @@ export const BINARY_SIGNATURES: Record<string, string> = {
   '%PDF': 'PDF document',
   'PK\x03\x04': 'ZIP archive',
   '\x1f\x8b': 'GZIP compressed',
-};
-
-/**
- * Maximum file size to read (in bytes)
- * Files larger than this will be marked but not fully read
- */
-export const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
-
-/**
- * Scan rate limiting
- */
-export const SCAN_CONFIG = {
-  delayBetweenFiles: 50, // ms delay between file scans (sequential) - faster polling
-  maxRetries: 2, // Retry failed reads
-  timeout: 10000, // Timeout per file read (ms)
 };

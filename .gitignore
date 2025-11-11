@@ -49,3 +49,8 @@ received-functions
 public/hisense-functions-*.d.ts
 public/hisense-source-*.js
 public/device-info-*.json
+
+# Session persistence files (keep directory, ignore content)
+scan-data/*.json
+scan-data/*.json.gz
+!scan-data/.gitkeep

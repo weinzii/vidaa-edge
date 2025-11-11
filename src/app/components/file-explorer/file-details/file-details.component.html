@@ -28,9 +28,55 @@
     </div>
 
     <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-      <!-- Discovered From (Source File) -->
+      <!-- Discovery Chain (NEW) -->
       <div
-        *ngIf="selectedFile.discoveredFrom"
+        *ngIf="getDiscoveryChain(selectedFile).length > 1"
+        class="p-3 bg-purple-900/20 border border-purple-700 rounded space-y-2"
+      >
+        <p class="text-xs font-semibold text-purple-300">🔍 Discovery Chain:</p>
+
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 flex-wrap text-sm">
+          <ng-container
+            *ngFor="
+              let item of getDiscoveryChain(selectedFile);
+              let last = last
+            "
+          >
+            <button
+              *ngIf="item.path"
+              class="px-2 py-1 rounded bg-purple-800 hover:bg-purple-700 text-purple-200 transition-colors text-xs font-medium"
+              (click)="selectFile(item.path)"
+              [title]="item.path"
+              type="button"
+            >
+              {{ item.icon }} {{ item.name }}
+            </button>
+            <span *ngIf="!last" class="text-purple-500 text-lg">→</span>
+          </ng-container>
+        </div>
+
+        <!-- Method Details -->
+        <div class="text-xs text-gray-400 space-y-1 mt-2">
+          <div
+            *ngFor="let item of getDiscoveryChain(selectedFile); let i = index"
+          >
+            <span *ngIf="i > 0" class="text-purple-400 font-semibold"
+              >Level {{ i }}:</span
+            >
+            <span [class.ml-2]="i > 0" [class.font-semibold]="i === 0">{{
+              item.description
+            }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discovered From (Source File) - Keep for single-level reference -->
+      <div
+        *ngIf="
+          selectedFile.discoveredFrom &&
+          getDiscoveryChain(selectedFile).length === 1
+        "
         class="p-3 bg-purple-900/20 border border-purple-700 rounded space-y-1"
       >
         <p class="text-xs font-semibold text-purple-300">📍 Discovered From:</p>
@@ -38,6 +84,7 @@
           class="text-sm text-orange-400 hover:text-orange-300 underline cursor-pointer break-all text-left"
           (click)="selectFile(selectedFile.discoveredFrom)"
           title="Click to view source file"
+          type="button"
         >
           {{ selectedFile.discoveredFrom }}
         </button>
@@ -172,17 +219,42 @@
       >
         <div class="flex items-center justify-between">
           <h4 class="text-sm font-bold text-purple-200">📄 Full Content</h4>
-          <button
-            class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
-            (click)="copyToClipboard(selectedFile.content || '')"
-            title="Copy full content"
-          >
-            📋 Copy All
-          </button>
+          <div class="flex gap-2">
+            <button
+              class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
+              (click)="refreshContent()"
+              title="Refresh content from TV"
+              [disabled]="isLoadingContent"
+            >
+              🔄 Refresh
+            </button>
+            <button
+              class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
+              (click)="copyToClipboard(selectedFile.content || '')"
+              title="Copy full content"
+              [disabled]="isLoadingContent"
+            >
+              📋 Copy All
+            </button>
+          </div>
         </div>
+
+        <!-- Loading indicator -->
+        <div
+          *ngIf="isLoadingContent"
+          class="bg-gray-900 p-4 rounded text-center text-gray-400 text-sm"
+        >
+          <div class="animate-pulse">⏳ Loading content from TV...</div>
+        </div>
+
+        <!-- Content display -->
         <pre
+          *ngIf="!isLoadingContent"
           class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto font-mono whitespace-pre-wrap break-all"
-          >{{ selectedFile.content || '' }}</pre
+          >{{
+            selectedFile.content ||
+              '(Content not available - file was not scanned with content)'
+          }}</pre
         >
       </div>
 
@@ -199,6 +271,160 @@
           Size: {{ formatSize(selectedFile.size) }}
         </p>
       </div>
+
+      <!-- Debug Info (Collapsible) -->
+      <details class="group">
+        <summary
+          class="cursor-pointer px-3 py-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-750 transition-colors"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-300">
+              🔍 Debug Information
+            </span>
+            <span
+              class="text-xs text-gray-500 group-open:rotate-90 transition-transform"
+              >▶</span
+            >
+          </div>
+        </summary>
+
+        <div
+          class="mt-2 p-3 bg-gray-900 border border-gray-700 rounded space-y-3"
+        >
+          <!-- Processing Summary -->
+          <div class="space-y-1">
+            <p class="text-xs font-semibold text-blue-300">
+              Processing Summary:
+            </p>
+            <div class="text-xs text-gray-400 space-y-1 font-mono">
+              <div>
+                <span class="text-gray-500">Status:</span>
+                <span
+                  [class]="
+                    selectedFile.status === 'success'
+                      ? 'text-green-400'
+                      : 'text-red-400'
+                  "
+                  >{{ selectedFile.status }}</span
+                >
+              </div>
+              <div>
+                <span class="text-gray-500">Discovery Method:</span>
+                <span class="text-purple-400">{{
+                  selectedFile.discoveryMethod
+                }}</span>
+              </div>
+              <div *ngIf="selectedFile.discoveredFrom">
+                <span class="text-gray-500">Discovered From:</span>
+                <span class="text-orange-400">{{
+                  selectedFile.discoveredFrom
+                }}</span>
+              </div>
+              <div *ngIf="selectedFile.isBinary !== undefined">
+                <span class="text-gray-500">Is Binary:</span>
+                <span class="text-blue-400">{{ selectedFile.isBinary }}</span>
+              </div>
+              <div *ngIf="selectedFile.fileType">
+                <span class="text-gray-500">File Type:</span>
+                <span class="text-blue-400">{{ selectedFile.fileType }}</span>
+              </div>
+              <div>
+                <span class="text-gray-500">Size:</span>
+                <span class="text-blue-400">{{
+                  formatSize(selectedFile.size)
+                }}</span>
+              </div>
+              <div *ngIf="selectedFile.confidence">
+                <span class="text-gray-500">Confidence:</span>
+                <span class="text-blue-400"
+                  >{{ (selectedFile.confidence * 100).toFixed(1) }}%</span
+                >
+              </div>
+              <div>
+                <span class="text-gray-500">Timestamp:</span>
+                <span class="text-blue-400">{{
+                  selectedFile.timestamp | date : 'HH:mm:ss.SSS'
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Path Extraction Details -->
+          <div class="space-y-1" *ngIf="selectedFile.extractedPaths.length > 0">
+            <p class="text-xs font-semibold text-green-300">
+              Path Extraction ({{ selectedFile.extractedPaths.length }} new):
+            </p>
+            <div class="text-xs text-gray-400 font-mono space-y-0.5">
+              <div *ngFor="let path of selectedFile.extractedPaths">
+                ✓ {{ path }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Ignored Paths -->
+          <div class="space-y-1" *ngIf="selectedFile.ignoredPaths?.length">
+            <p class="text-xs font-semibold text-yellow-300">
+              Ignored Paths ({{ selectedFile.ignoredPaths?.length }} already
+              known):
+            </p>
+            <div class="text-xs text-gray-500 font-mono space-y-0.5">
+              <div *ngFor="let path of selectedFile.ignoredPaths">
+                ⊘ {{ path }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Variables Discovered -->
+          <div class="space-y-1" *ngIf="getVariablesDiscovered().length > 0">
+            <p class="text-xs font-semibold text-purple-300">
+              Variables Discovered ({{ getVariablesDiscovered().length }}):
+            </p>
+            <div class="text-xs text-gray-400 font-mono space-y-0.5">
+              <div *ngFor="let varInfo of getVariablesDiscovered()">
+                <span class="text-purple-400">{{ varInfo.name }}</span> =
+                <span class="text-green-400">"{{ varInfo.value }}"</span>
+                <span class="text-gray-600">({{ varInfo.confidence }})</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Templates Deferred -->
+          <div class="space-y-1" *ngIf="getTemplatesDeferred().length > 0">
+            <p class="text-xs font-semibold text-orange-300">
+              Templates Deferred ({{ getTemplatesDeferred().length }}):
+            </p>
+            <div class="text-xs text-gray-400 font-mono space-y-0.5">
+              <div *ngFor="let template of getTemplatesDeferred()">
+                ⏳ {{ template.template }}
+                <span class="text-gray-600"
+                  >(waiting for: {{ template.variables.join(', ') }})</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Details -->
+          <div class="space-y-1" *ngIf="selectedFile.error">
+            <p class="text-xs font-semibold text-red-300">Error Details:</p>
+            <pre
+              class="text-xs text-red-400 font-mono whitespace-pre-wrap break-all p-2 bg-red-900/20 border border-red-800 rounded"
+              >{{ selectedFile.error }}</pre
+            >
+          </div>
+
+          <!-- Copy All Debug Info -->
+          <div class="pt-2 border-t border-gray-700">
+            <button
+              class="w-full px-3 py-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors font-medium"
+              (click)="copyDebugInfo()"
+              title="Copy all debug information to clipboard"
+              type="button"
+            >
+              📋 Copy Debug Info to Clipboard
+            </button>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -256,14 +482,27 @@
     <div class="flex-1 min-h-0 overflow-y-auto p-4">
       <!-- Content Tab -->
       <div *ngIf="activeTab === 'content'" class="space-y-4">
+        <!-- Loading Indicator -->
+        <div
+          *ngIf="isLoadingContent"
+          class="p-4 bg-customGray border border-purple-700 rounded animate-pulse"
+        >
+          <p class="text-sm text-purple-300">⏳ Loading content from TV...</p>
+        </div>
+
         <!-- Text Content -->
         <div
-          *ngIf="selectedFile.status === 'success' && !selectedFile.isBinary"
+          *ngIf="
+            !isLoadingContent &&
+            selectedFile.status === 'success' &&
+            !selectedFile.isBinary
+          "
         >
           <div class="flex items-center justify-between mb-2">
             <h4 class="text-sm font-bold text-purple-200">📄 Full Content</h4>
             <button
               class="px-2 py-1 text-xs bg-customGray hover:bg-gray-700 text-gray-200 rounded transition-colors"
+              [disabled]="isLoadingContent"
               (click)="copyToClipboard(selectedFile.content || '')"
               title="Copy full content"
             >
@@ -272,13 +511,20 @@
           </div>
           <pre
             class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto font-mono whitespace-pre-wrap break-all"
-            >{{ selectedFile.content || '' }}</pre
+            >{{
+              selectedFile.content ||
+                '(Content not available. Click the file again to load it.)'
+            }}</pre
           >
         </div>
 
         <!-- Binary Preview -->
         <div
-          *ngIf="selectedFile.status === 'success' && selectedFile.isBinary"
+          *ngIf="
+            !isLoadingContent &&
+            selectedFile.status === 'success' &&
+            selectedFile.isBinary
+          "
           class="p-4 bg-customGray border border-gray-700 rounded space-y-2"
         >
           <p class="text-sm text-gray-300">
@@ -292,7 +538,7 @@
 
         <!-- Error Message -->
         <div
-          *ngIf="selectedFile.status !== 'success'"
+          *ngIf="!isLoadingContent && selectedFile.status !== 'success'"
           class="p-4 bg-red-900/20 border border-red-800 rounded"
         >
           <p class="text-sm text-red-300">
@@ -443,6 +689,134 @@
             </div>
           </div>
         </div>
+
+        <!-- Debug Info (Collapsible) - Same as List View -->
+        <details class="group">
+          <summary
+            class="cursor-pointer px-3 py-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-750 transition-colors"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-gray-300">
+                🔍 Debug Information
+              </span>
+              <span
+                class="text-xs text-gray-500 group-open:rotate-90 transition-transform"
+                >▶</span
+              >
+            </div>
+          </summary>
+
+          <div
+            class="mt-2 p-3 bg-gray-900 border border-gray-700 rounded space-y-3"
+          >
+            <!-- Processing Summary -->
+            <div class="space-y-1">
+              <p class="text-xs font-semibold text-blue-300">
+                Processing Summary:
+              </p>
+              <div class="text-xs text-gray-400 space-y-1 font-mono">
+                <div>
+                  <span class="text-gray-500">Status:</span>
+                  <span
+                    [class]="
+                      selectedFile.status === 'success'
+                        ? 'text-green-400'
+                        : 'text-red-400'
+                    "
+                    >{{ selectedFile.status }}</span
+                  >
+                </div>
+                <div>
+                  <span class="text-gray-500">Discovery Method:</span>
+                  <span class="text-purple-400">{{
+                    selectedFile.discoveryMethod
+                  }}</span>
+                </div>
+                <div *ngIf="selectedFile.discoveredFrom">
+                  <span class="text-gray-500">Discovered From:</span>
+                  <span class="text-orange-400">{{
+                    selectedFile.discoveredFrom
+                  }}</span>
+                </div>
+                <div *ngIf="selectedFile.isBinary !== undefined">
+                  <span class="text-gray-500">Is Binary:</span>
+                  <span class="text-blue-400">{{ selectedFile.isBinary }}</span>
+                </div>
+                <div *ngIf="selectedFile.fileType">
+                  <span class="text-gray-500">File Type:</span>
+                  <span class="text-blue-400">{{ selectedFile.fileType }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Size:</span>
+                  <span class="text-blue-400">{{
+                    formatSize(selectedFile.size)
+                  }}</span>
+                </div>
+                <div *ngIf="selectedFile.confidence">
+                  <span class="text-gray-500">Confidence:</span>
+                  <span class="text-blue-400"
+                    >{{ (selectedFile.confidence * 100).toFixed(1) }}%</span
+                  >
+                </div>
+                <div>
+                  <span class="text-gray-500">Timestamp:</span>
+                  <span class="text-blue-400">{{
+                    selectedFile.timestamp | date : 'HH:mm:ss.SSS'
+                  }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Path Extraction Details -->
+            <div
+              class="space-y-1"
+              *ngIf="selectedFile.extractedPaths.length > 0"
+            >
+              <p class="text-xs font-semibold text-green-300">
+                Path Extraction ({{ selectedFile.extractedPaths.length }} new):
+              </p>
+              <div class="text-xs text-gray-400 font-mono space-y-0.5">
+                <div *ngFor="let path of selectedFile.extractedPaths">
+                  ✓ {{ path }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Ignored Paths -->
+            <div class="space-y-1" *ngIf="selectedFile.ignoredPaths?.length">
+              <p class="text-xs font-semibold text-yellow-300">
+                Ignored Paths ({{ selectedFile.ignoredPaths?.length }} already
+                known):
+              </p>
+              <div class="text-xs text-gray-500 font-mono space-y-0.5">
+                <div *ngFor="let path of selectedFile.ignoredPaths">
+                  ⊘ {{ path }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Error Details -->
+            <div class="space-y-1" *ngIf="selectedFile.error">
+              <p class="text-xs font-semibold text-red-300">Error Details:</p>
+              <pre
+                class="text-xs text-red-400 font-mono whitespace-pre-wrap break-all p-2 bg-red-900/20 border border-red-800 rounded"
+                >{{ selectedFile.error }}</pre
+              >
+            </div>
+
+            <!-- Copy All Debug Info -->
+            <div class="pt-2 border-t border-gray-700">
+              <button
+                class="w-full px-3 py-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors font-medium"
+                (click)="copyDebugInfo()"
+                title="Copy all debug information to clipboard"
+                type="button"
+              >
+                📋 Copy Debug Info to Clipboard
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>

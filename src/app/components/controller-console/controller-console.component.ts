@@ -72,6 +72,9 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
   expandedHistoryItems: Set<number> = new Set();
   expandedHistoryResults: Set<number> = new Set();
 
+  // Quick File Read State
+  quickReadPath = '';
+
   // Scroll State
   showScrollButton = false;
 
@@ -112,29 +115,10 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     // Subscribe to TV functions for filtering
     const functionsSubscription = this.tvFunctionService.functions$.subscribe({
       next: (functions: FunctionData[]) => {
-        console.log(
-          '[ControllerConsole] Subscription triggered with',
-          functions.length,
-          'functions'
-        );
-        console.log(
-          '[ControllerConsole] availableFunctions before:',
-          this.availableFunctions.length
-        );
         if (functions && functions.length > 0) {
           this.availableFunctions = functions;
           this.filterFunctions();
-          console.log(
-            '[ControllerConsole] availableFunctions after:',
-            this.availableFunctions.length
-          );
-          console.log(
-            '[ControllerConsole] filteredFunctions:',
-            this.filteredFunctions.length
-          );
-          console.log('[ControllerConsole] Calling detectChanges()...');
           this.cdr.detectChanges();
-          console.log('[ControllerConsole] detectChanges() done!');
         }
       },
     });
@@ -274,6 +258,52 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     const reversedIndex = this.commandHistory.length - 1 - index;
     this.commandHistory.splice(reversedIndex, 1);
     this.saveCommandHistory();
+  }
+
+  onHistoryItemReused(command: CommandHistoryEntry): void {
+    if (command.customCode) {
+      // Reuse custom code - open custom code modal with pre-filled code
+      this.customJsCode = command.customCode;
+      this.showCustomCodeModal = true;
+      this.customCodeResult = null;
+      this.isCustomCodeResultExpanded = false;
+    } else if (command.functionName) {
+      // Reuse regular function - find and select it
+      const func = this.availableFunctions.find(
+        (f) => f.name === command.functionName
+      );
+      if (func) {
+        this.selectedFunction = func;
+        // Pre-fill parameters if available
+        if (command.parameters && command.parameters.length > 0) {
+          this.parameterValues = command.parameters.map((p) => String(p));
+        } else {
+          this.parameterValues = func.parameters?.map(() => '') || [];
+        }
+        this.showExecutionModal = true;
+        this.executionResult = null;
+        this.isExecutionResultExpanded = false;
+      }
+    }
+    // Scroll to top to see the modal
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // QUICK FILE READ EVENT HANDLER
+  async onQuickFileRead(): Promise<void> {
+    const path = this.quickReadPath.trim();
+    if (!path || !this.tvConnection.connected) return;
+
+    // Convert absolute path to relative format required by TV API
+    // Example: /etc/profile -> ../../../etc/profile
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    const relativePath = `../../../${cleanPath}`;
+
+    // Execute Hisense_FileRead with path and offset 0
+    await this.executeCommand('Hisense_FileRead', [relativePath, 0]);
+
+    // Clear input after execution
+    this.quickReadPath = '';
   }
 
   onScrollToTop(): void {
@@ -621,7 +651,7 @@ export class ControllerConsoleComponent implements OnInit, OnDestroy {
     this.showCustomCodeModal = true;
   }
 
-  private copyResultToClipboard(result: FunctionResult): void {
+  copyResultToClipboard(result: FunctionResult): void {
     if (result === null || result === undefined) return;
 
     const resultText = this.formatResult(result);

@@ -50,6 +50,7 @@
       [class.bg-customGray]="selectedFile === node.file"
       [class.border-l-4]="selectedFile === node.file"
       [class.border-l-orange-500]="selectedFile === node.file"
+      [attr.data-path]="node.file?.path"
       (click)="selectFile(node.file!)"
       (keyup.enter)="selectFile(node.file!)"
       (keyup.space)="selectFile(node.file!)"

@@ -26,6 +26,8 @@ export class CommandHistoryComponent {
   @Output() historyExpansionToggled = new EventEmitter<number>();
   @Output() historyResultExpansionToggled = new EventEmitter<number>();
   @Output() historyItemDeleted = new EventEmitter<number>();
+  @Output() historyItemReused = new EventEmitter<CommandHistoryEntry>();
+  @Output() resultCopied = new EventEmitter<FunctionResult>();
 
   onHistoryToggle(index: number): void {
     this.historyExpansionToggled.emit(index);
@@ -37,6 +39,14 @@ export class CommandHistoryComponent {
 
   onDeleteItem(index: number): void {
     this.historyItemDeleted.emit(index);
+  }
+
+  onReuseItem(command: CommandHistoryEntry): void {
+    this.historyItemReused.emit(command);
+  }
+
+  onCopyResult(result: FunctionResult): void {
+    this.resultCopied.emit(result);
   }
 
   isHistoryExpanded(index: number): boolean {
@@ -69,10 +79,32 @@ export class CommandHistoryComponent {
 
   formatTime(date: Date | null): string {
     if (!date) return 'Unknown';
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+
+    const commandDate = new Date(date);
+    const today = new Date();
+
+    // Check if it's today by comparing year, month, and day
+    const isToday =
+      commandDate.getFullYear() === today.getFullYear() &&
+      commandDate.getMonth() === today.getMonth() &&
+      commandDate.getDate() === today.getDate();
+
+    if (isToday) {
+      // Show only time if today
+      return commandDate.toLocaleTimeString('de-DE', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    } else {
+      // Show date and time if not today
+      return commandDate.toLocaleString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
   }
 }

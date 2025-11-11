@@ -1,0 +1,7 @@
+/* Session Manager uses Tailwind CSS - minimal custom styles only */
+
+/* Smooth focus outline for accessibility */
+[role="button"]:focus {
+  outline: 2px solid rgb(168, 85, 247);
+  outline-offset: 2px;
+}

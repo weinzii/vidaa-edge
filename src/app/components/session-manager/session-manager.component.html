@@ -1,0 +1,154 @@
+<div class="flex flex-col h-full p-4 bg-gray-900 text-gray-200">
+  <!-- Header -->
+  <div
+    class="flex justify-between items-center mb-4 pb-3 border-b border-gray-700"
+  >
+    <h2 class="text-2xl font-bold text-purple-400">📂 Saved Sessions</h2>
+    <button
+      class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors duration-200"
+      (click)="loadSessions()"
+      [disabled]="loading"
+    >
+      🔄 Refresh
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div
+    *ngIf="loading"
+    class="flex flex-col items-center justify-center py-12 text-gray-400"
+  >
+    <div
+      class="w-10 h-10 border-4 border-gray-700 border-t-purple-600 rounded-full animate-spin mb-4"
+    ></div>
+    <p>Loading sessions...</p>
+  </div>
+
+  <!-- Error state -->
+  <div
+    *ngIf="error"
+    class="p-4 bg-red-900 bg-opacity-20 border border-red-700 rounded text-center"
+  >
+    <p class="text-red-400">❌ {{ error }}</p>
+    <button
+      class="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors duration-200"
+      (click)="loadSessions()"
+    >
+      Retry
+    </button>
+  </div>
+
+  <!-- Empty state -->
+  <div
+    *ngIf="!loading && !error && sessions.length === 0"
+    class="text-center py-12 text-gray-400"
+  >
+    <p class="text-2xl mb-2">📭 No saved sessions found</p>
+    <p class="text-sm">Start a scan to create a new session</p>
+  </div>
+
+  <!-- Sessions list -->
+  <div
+    *ngIf="!loading && !error && sessions.length > 0"
+    class="flex-1 overflow-y-auto space-y-3"
+  >
+    <div
+      *ngFor="let session of sessions"
+      [ngClass]="{
+        'bg-gray-800 border rounded-lg p-4 cursor-pointer transition-all duration-200': true,
+        'border-gray-700 hover:border-purple-600':
+          session.sessionId !== selectedSessionId,
+        'border-purple-600 shadow-lg shadow-purple-600/50':
+          session.sessionId === selectedSessionId
+      }"
+      (click)="selectSession(session.sessionId)"
+      (keyup.enter)="selectSession(session.sessionId)"
+      (keyup.space)="selectSession(session.sessionId)"
+      tabindex="0"
+      role="button"
+      [attr.aria-label]="'Session ' + session.sessionId"
+    >
+      <!-- Session header -->
+      <div class="mb-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="font-mono text-base font-medium text-purple-300">{{
+            session.sessionId
+          }}</span>
+          <span
+            class="px-2 py-1 text-xs font-semibold rounded uppercase"
+            [ngClass]="{
+              'bg-green-900 bg-opacity-30 text-green-400 border border-green-700':
+                session.status === 'active' || session.status === 'running',
+              'bg-orange-900 bg-opacity-30 text-orange-400 border border-orange-700':
+                session.status === 'paused',
+              'bg-blue-900 bg-opacity-30 text-blue-400 border border-blue-700':
+                session.status === 'completed',
+              'bg-red-900 bg-opacity-30 text-red-400 border border-red-700':
+                session.status === 'error'
+            }"
+          >
+            {{ session.status }}
+          </span>
+        </div>
+        <div class="flex gap-4 text-xs text-gray-400">
+          <span class="flex items-center gap-1" title="Last Modified">
+            📝 {{ formatDate(session.lastModified) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Session stats -->
+      <div class="flex gap-6 py-3 mb-3 border-t border-b border-gray-700">
+        <div class="flex gap-2 text-sm">
+          <span class="text-gray-400">Files:</span>
+          <span class="text-green-400 font-medium">{{
+            session.totalFiles
+          }}</span>
+        </div>
+        <div class="flex gap-2 text-sm">
+          <span class="text-gray-400">Runs:</span>
+          <span class="text-green-400 font-medium">{{
+            session.totalRuns
+          }}</span>
+        </div>
+        <div class="flex gap-2 text-sm">
+          <span class="text-gray-400">Size:</span>
+          <span class="text-green-400 font-medium">{{ session.size }}</span>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-2 flex-wrap">
+        <button
+          *ngIf="session.canResume"
+          class="px-3 py-1.5 text-sm bg-green-700 hover:bg-green-600 text-white rounded transition-colors duration-200"
+          (click)="resumeSession(session.sessionId); $event.stopPropagation()"
+          title="Resume scanning"
+        >
+          ▶️ Resume
+        </button>
+        <button
+          class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 text-white rounded transition-colors duration-200"
+          (click)="browseSession(session.sessionId); $event.stopPropagation()"
+          title="Browse offline"
+        >
+          👁️ Browse
+        </button>
+        <button
+          class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors duration-200"
+          (click)="exportSession(session.sessionId); $event.stopPropagation()"
+          title="Export as JSON"
+        >
+          💾 Export
+        </button>
+        <button
+          class="px-3 py-1.5 text-sm bg-red-700 hover:bg-red-600 text-white rounded transition-colors duration-200"
+          (click)="deleteSession(session.sessionId); $event.stopPropagation()"
+          title="Delete session"
+        >
+          🗑️ Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

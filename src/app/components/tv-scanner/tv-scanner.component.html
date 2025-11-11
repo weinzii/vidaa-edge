@@ -1,11 +1,17 @@
 <div
   class="max-w-4xl mx-auto p-5 bg-gray-900 text-gray-200 min-h-screen font-sans relative overflow-y-auto hide-scrollbar"
   [class.screensaver-active]="isScreensaverActive"
+  (mousemove)="onUserActivity()"
+  (keydown)="onUserActivity()"
+  (click)="onUserActivity()"
+  (touchstart)="onUserActivity()"
+  tabindex="0"
 >
   <!-- Screensaver Overlay -->
   <div
     *ngIf="isScreensaverActive"
-    class="fixed inset-0 bg-black bg-opacity-95 backdrop-blur-xl z-50 flex items-center justify-center"
+    class="fixed inset-0 bg-black bg-opacity-95 backdrop-blur-xl z-50 flex items-center justify-center overflow-hidden"
+    style="scrollbar-width: none; -ms-overflow-style: none"
   >
     <div
       class="select-none"
@@ -38,7 +44,7 @@
       [class.border-red-500]="tvStatusType === 'error'"
       [class.border-blue-500]="tvStatusType === 'info'"
     >
-      <h3 class="text-lg font-semibold mb-3">📋 Scanner Status</h3>
+      <h3 class="text-lg font-semibold mb-3">Scanner Status</h3>
       <pre
         class="whitespace-pre-wrap bg-black p-4 rounded font-mono text-sm leading-relaxed max-h-80 overflow-y-auto"
         >{{ tvStatusMessage }}</pre

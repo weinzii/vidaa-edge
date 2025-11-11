@@ -17,15 +17,14 @@
             <span class="font-mono font-bold text-orange-400 text-sm">{{
               command.functionName
             }}</span>
-            <!-- Show Parameters for regular functions - max 25% width -->
+            <!-- Show Parameters for regular functions -->
             <span
               *ngIf="
                 command.parameters &&
                 command.parameters.length > 0 &&
                 !command.customCode
               "
-              class="text-gray-400 text-xs truncate max-w-[25%]"
-              [title]="'(' + command.parameters.join(', ') + ')'"
+              class="text-gray-400 text-xs break-all"
               >({{ command.parameters.join(', ') }})</span
             >
             <!-- Custom Code Indicator -->
@@ -38,6 +37,13 @@
           <span class="text-gray-400 text-xs">{{
             formatTime(command.timestamp)
           }}</span>
+          <button
+            (click)="onReuseItem(command)"
+            class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            title="Reuse command (fill parameters)"
+          >
+            ♻️
+          </button>
           <button
             (click)="onDeleteItem(i)"
             class="text-xs text-red-400 hover:text-red-300 transition-colors"
@@ -110,39 +116,63 @@
           <span class="text-xs text-gray-400">Result:</span>
         </div>
         <div class="relative">
-          <button
-            *ngIf="shouldShowExpandButton(command.result)"
-            (click)="onResultToggle(commandHistory.length - 1 - i)"
-            class="absolute top-2 right-2 text-gray-400 hover:text-orange-400 transition-colors p-1 bg-customGray-light rounded z-10"
-            [title]="
-              isHistoryResultExpanded(commandHistory.length - 1 - i)
-                ? 'Collapse result'
-                : 'Expand result'
-            "
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div class="absolute top-2 right-2 flex gap-1 z-10">
+            <button
+              (click)="onCopyResult(command.result)"
+              class="text-gray-400 hover:text-green-400 transition-colors p-1 bg-customGray-light rounded"
+              title="Copy result to clipboard"
             >
-              <path
-                *ngIf="!isHistoryResultExpanded(commandHistory.length - 1 - i)"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-              />
-              <path
-                *ngIf="isHistoryResultExpanded(commandHistory.length - 1 - i)"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
-              />
-            </svg>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            </button>
+            <button
+              *ngIf="shouldShowExpandButton(command.result)"
+              (click)="onResultToggle(commandHistory.length - 1 - i)"
+              class="text-gray-400 hover:text-orange-400 transition-colors p-1 bg-customGray-light rounded"
+              [title]="
+                isHistoryResultExpanded(commandHistory.length - 1 - i)
+                  ? 'Collapse result'
+                  : 'Expand result'
+              "
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  *ngIf="
+                    !isHistoryResultExpanded(commandHistory.length - 1 - i)
+                  "
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                />
+                <path
+                  *ngIf="isHistoryResultExpanded(commandHistory.length - 1 - i)"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
+                />
+              </svg>
+            </button>
+          </div>
           <pre
             class="bg-customGray p-2 rounded border border-purple-900 text-xs font-mono text-gray-300 overflow-y-auto"
             [class.max-h-20]="

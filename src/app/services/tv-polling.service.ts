@@ -20,6 +20,12 @@ export interface RemoteCommandCheck {
   command?: RemoteCommand;
 }
 
+export interface RemoteCommandBatchCheck {
+  hasCommands: boolean;
+  commands?: RemoteCommand[];
+  remainingInQueue?: number;
+}
+
 export interface CommandResponse {
   commandId: string;
   success?: boolean;
@@ -64,6 +70,42 @@ export class TvPollingService {
           observer.complete();
         },
       });
+    });
+  }
+
+  /**
+   * Check for batch of pending commands from server (called by TV).
+   * TV polls this endpoint to get multiple commands for parallel execution.
+   * @param batchSize Number of commands to fetch (default: 10, max: 20)
+   * @returns Observable with batch check result
+   */
+  public checkForCommandsBatch(
+    batchSize = 10
+  ): Observable<RemoteCommandBatchCheck> {
+    return new Observable((observer) => {
+      this.http
+        .get(`/api/remote-command-batch?batchSize=${batchSize}`)
+        .subscribe({
+          next: (data) => {
+            const result = data as RemoteCommandBatchCheck;
+            if (result.hasCommands && result.commands) {
+              this.consoleService.debug(
+                `Fetched ${result.commands.length} commands (${result.remainingInQueue} remaining in queue)`,
+                'TVPolling'
+              );
+            }
+            observer.next(result);
+            observer.complete();
+          },
+          error: () => {
+            this.consoleService.debug(
+              'Batch command API not reachable (polling)',
+              'TVPolling'
+            );
+            observer.next({ hasCommands: false, commands: [] });
+            observer.complete();
+          },
+        });
     });
   }
 

@@ -5,10 +5,10 @@ Use the remote console to install custom PWAs
 
 prerequisite:
 - local DNS-Server set dev env. to vidaahub.com
-- clone vidaa edge & run dev-server
+- clone vidaa edge & run dev-server ```npx node dev-server.js```
 - on your tv open: vidaahub.com
 - start remote console
-- after a successfuly connection, execute custom code from https://github.com/PhasedGapple/HiZ-Store/issues/1#issuecomment-3441402418 (insert instance informations)
+- after a successfuly connection, execute custom code from https://github.com/PhasedGapple/HiZ-Store/issues/1#issuecomment-3441402418 (insert instance informations use .png, not .ico)
 
 
 ------------------------

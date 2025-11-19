@@ -157,9 +157,7 @@ vidaa-edge/
 
 ## Documentation
 
-For complete setup guides and API references:
-
-- **Hosted Documentation:** [vidaa.flummi.ch](https://vidaa.flummi.ch/documentation)
+API references:
 - **BananaMafia Research:** [Original exploit analysis](https://bananamafia.dev/post/hisensehax/)
 
 ## License

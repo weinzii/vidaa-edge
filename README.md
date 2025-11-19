@@ -71,7 +71,7 @@ This fork extends the original VidaaEdge project with enhanced JavaScript execut
 ### 1. Start Development Server
 
 ```bash
-npm start
+npx node dev-server.js
 ```
 
 ### 2. Configure DNS
@@ -145,14 +145,6 @@ vidaa-edge/
 │   │       └── start/              # App installation
 │   └── environments/               # Config files
 └── public/                        # Generated function files
-```
-
-### Build Commands
-
-```bash
-npm start            # Start API server (dev-server.js on port 3000)
-npm run build        # Production build
-npm test             # Run tests
 ```
 
 ## Security Considerations

@@ -1,0 +1,219 @@
+@if(vidaaDevice) {
+<!-- TV-OS Optimized Installer UI -->
+<div class="flex flex-col gap-6">
+  <!-- Header -->
+  <div class="text-center">
+    <h1 class="text-3xl font-bold text-orange-500 mb-2">Install Custom PWA</h1>
+    <p class="text-gray-400 text-lg">Install your own progressive web apps on VidaaOS</p>
+  </div>
+
+  <!-- Installation Form - Large, TV-friendly inputs -->
+  <div class="bg-customGray rounded-lg p-6 border border-orange-400/20">
+    <div class="flex flex-col gap-5">
+      <!-- App ID -->
+      <div class="flex flex-col gap-2">
+        <label for="appId" class="text-lg font-medium text-orange-400">App ID</label>
+        <input 
+          id="appId" 
+          [(ngModel)]="appId" 
+          type="text" 
+          placeholder="e.g., jellyfin-web"
+          (focus)="setFocusedElement(0)"
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+        />
+        <span class="text-sm text-gray-500">Unique identifier for the app (no spaces)</span>
+      </div>
+
+      <!-- App Name -->
+      <div class="flex flex-col gap-2">
+        <label for="appName" class="text-lg font-medium text-orange-400">App Name</label>
+        <input 
+          id="appName" 
+          [(ngModel)]="appName" 
+          type="text" 
+          placeholder="e.g., Jellyfin"
+          (focus)="setFocusedElement(1)"
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+        />
+        <span class="text-sm text-gray-500">Display name shown on TV</span>
+      </div>
+
+      <!-- App URL -->
+      <div class="flex flex-col gap-2">
+        <label for="appUrl" class="text-lg font-medium text-orange-400">App URL</label>
+        <input 
+          id="appUrl" 
+          [(ngModel)]="appUrl" 
+          type="text" 
+          placeholder="e.g., https://jellyfin.example.com/web"
+          (focus)="setFocusedElement(2)"
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+        />
+        <span class="text-sm text-gray-500">Full URL to your PWA (include https://)</span>
+      </div>
+
+      <!-- Icon URL (Optional) -->
+      <div class="flex flex-col gap-2">
+        <label for="iconUrl" class="text-lg font-medium text-orange-400">Icon URL <span class="text-gray-500 font-normal">(Optional)</span></label>
+        <input 
+          id="iconUrl" 
+          [(ngModel)]="iconUrl" 
+          type="text" 
+          placeholder="e.g., https://jellyfin.example.com/favicon.png"
+          (focus)="setFocusedElement(3)"
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+        />
+        <span class="text-sm text-gray-500">URL to app icon (uses app URL if empty)</span>
+      </div>
+
+      <!-- Installation Method -->
+      <div class="flex flex-col gap-2">
+        <label for="method" class="text-lg font-medium text-orange-400">Installation Method</label>
+        <select 
+          id="method"
+          [(ngModel)]="installMethod"
+          (focus)="setFocusedElement(4)"
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all"
+        >
+          <option value="auto">Auto (Recommended)</option>
+          <option value="legacy" [disabled]="!legacyAvailable">Legacy (Hisense API)</option>
+          <option value="new" [disabled]="!newMethodAvailable">New (File System)</option>
+        </select>
+        <span class="text-sm text-gray-500">
+          Auto tries new method first, then legacy
+          <span *ngIf="legacyAvailable" class="text-green-400 ml-2">● Legacy Available</span>
+          <span *ngIf="!legacyAvailable" class="text-red-400 ml-2">○ Legacy Unavailable</span>
+          <span *ngIf="newMethodAvailable" class="text-green-400 ml-2">● New Available</span>
+          <span *ngIf="!newMethodAvailable" class="text-red-400 ml-2">○ New Unavailable</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons - Large, focusable for TV remote -->
+  <div class="flex flex-col sm:flex-row gap-4">
+    <button 
+      id="installBtn"
+      (click)="installApp()"
+      (focus)="setFocusedElement(5)"
+      [disabled]="isInstalling || !isFormValid()"
+      class="flex-1 py-5 px-8 text-xl font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-500/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
+    >
+      <svg *ngIf="!isInstalling" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+      <svg *ngIf="isInstalling" class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+        <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"/>
+      </svg>
+      {{ isInstalling ? 'Installing...' : 'Install App' }}
+    </button>
+
+    <button 
+      id="uninstallBtn"
+      (click)="uninstallApp()"
+      (focus)="setFocusedElement(6)"
+      [disabled]="isInstalling || !appId || !appName"
+      class="flex-1 py-5 px-8 text-xl font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-500/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      </svg>
+      Uninstall App
+    </button>
+  </div>
+
+  <!-- Clear Form Button -->
+  <button 
+    (click)="clearForm()"
+    class="py-3 px-6 text-lg text-gray-400 bg-transparent border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white focus:ring-2 focus:ring-gray-500/50 focus:outline-none transition-all"
+  >
+    Clear Form
+  </button>
+
+  <!-- How It Works Section -->
+  <div class="bg-purple-900/50 rounded-lg p-6 border border-purple-700">
+    <h2 class="text-xl font-bold text-purple-200 mb-4">How It Works</h2>
+    <div class="space-y-3 text-gray-300">
+      <div class="flex items-start gap-3">
+        <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">1</span>
+        <p>Enter the app details (ID, name, and URL of your PWA)</p>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">2</span>
+        <p>Click "Install App" to add it to your TV</p>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">3</span>
+        <p><strong>Restart your TV</strong> to see the installed app on your home screen</p>
+      </div>
+    </div>
+    
+    <div class="mt-4 pt-4 border-t border-purple-700">
+      <h3 class="text-lg font-semibold text-purple-200 mb-2">Installation Methods</h3>
+      <ul class="space-y-2 text-sm text-gray-400">
+        <li><strong class="text-orange-400">Auto:</strong> Automatically chooses the best available method</li>
+        <li><strong class="text-orange-400">Legacy:</strong> Uses Hisense's official installApp API</li>
+        <li><strong class="text-orange-400">New:</strong> Writes directly to system Appinfo.json file</li>
+      </ul>
+    </div>
+
+    <div class="mt-4 pt-4 border-t border-purple-700">
+      <p class="text-sm text-gray-400">
+        <strong class="text-yellow-400">⚠️ Note:</strong> This method requires the domain to be "vidaahub.com" which is achieved via DNS configuration. 
+        See the project's GitHub for setup instructions.
+      </p>
+    </div>
+  </div>
+
+  <!-- Console hint -->
+  <p class="text-center text-gray-500 text-sm">Check the console for detailed installation logs</p>
+</div>
+} @else {
+<!-- Non-VidaaOS Device Message -->
+<div class="flex flex-col gap-6">
+  <div class="w-full p-6 bg-purple-900 border-l-4 border-purple-700 rounded-md">
+    <h2 class="text-2xl font-bold text-purple-200">Hello there</h2>
+    <p class="mt-2 text-orange-400">
+      No VidaaOS device detected. This app requires a VidaaOS-based TV.
+    </p>
+  </div>
+  
+  <div class="bg-customGray-light p-6 rounded-lg border border-gray-700">
+    <h3 class="text-xl font-semibold text-gray-100 mb-4">How to Use This App</h3>
+    <div class="space-y-4 text-gray-400">
+      <div class="flex items-start gap-3">
+        <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">1</span>
+        <div>
+          <p class="font-medium text-gray-200">Configure DNS on your TV</p>
+          <p class="text-sm">Set your TV's DNS to point to a server that redirects vidaahub.com to this app</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">2</span>
+        <div>
+          <p class="font-medium text-gray-200">Open browser on your VidaaOS TV</p>
+          <p class="text-sm">Navigate to vidaahub.com in your TV's browser</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">3</span>
+        <div>
+          <p class="font-medium text-gray-200">Install your custom PWAs</p>
+          <p class="text-sm">Use this interface to install progressive web apps on your TV</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="mt-6 pt-4 border-t border-gray-700">
+      <p class="text-sm text-gray-500">
+        For setup instructions, visit the 
+        <a href="https://github.com/weinzii/vidaa-edge" target="_blank" class="text-blue-500 hover:underline">GitHub repository</a>.
+      </p>
+    </div>
+  </div>
+</div>
+}

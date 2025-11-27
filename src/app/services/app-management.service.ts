@@ -22,6 +22,24 @@ export interface AppInfoFile {
   AppInfo: AppEntry[];
 }
 
+// Constants for HiUtils API
+const HIUTILS_FUNCTION_NAME = 'HiUtils_createRequest';
+const APPINFO_PATH = 'websdk/Appinfo.json';
+const APPINFO_MODE = 6;
+
+// Type for HiUtils_createRequest function
+type HiUtilsCreateRequestFn = (
+  action: string,
+  params: Record<string, unknown>
+) => { ret: boolean; msg: string };
+
+/**
+ * Get current date in YYYY-MM-DD format for InstallTime
+ */
+function getInstallDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -108,25 +126,18 @@ export class AppManagementService {
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
       try {
-        // Check if HiUtils_createRequest is available
-        const windowObj = window as unknown as Record<string, unknown>;
-        if (typeof windowObj['HiUtils_createRequest'] !== 'function') {
-          const errorMsg =
-            'HiUtils_createRequest is not available on this device';
+        const HiUtils_createRequest = this.getHiUtilsFunction();
+        if (!HiUtils_createRequest) {
+          const errorMsg = `${HIUTILS_FUNCTION_NAME} is not available on this device`;
           this.consoleService.addLog(errorMsg, 'error');
           reject(new Error(errorMsg));
           return;
         }
 
-        const HiUtils_createRequest = windowObj['HiUtils_createRequest'] as (
-          action: string,
-          params: Record<string, unknown>
-        ) => { ret: boolean; msg: string };
-
         // Read existing app list from system storage
         const current = HiUtils_createRequest('fileRead', {
-          path: 'websdk/Appinfo.json',
-          mode: 6,
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
         });
 
         // Parse JSON if it exists, otherwise create an empty structure
@@ -146,7 +157,7 @@ export class AppManagementService {
           Image: iconUrl,
           Thumb: iconUrl,
           Type: 'Browser',
-          InstallTime: new Date().toISOString().split('T')[0],
+          InstallTime: getInstallDate(),
           RunTimes: 0,
           StoreType: 'custom',
           PreInstall: false,
@@ -162,8 +173,8 @@ export class AppManagementService {
 
         // Write the updated list back to the system file
         const result = HiUtils_createRequest('fileWrite', {
-          path: 'websdk/Appinfo.json',
-          mode: 6,
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
           writedata: JSON.stringify(apps),
         });
 
@@ -199,25 +210,18 @@ export class AppManagementService {
   uninstallAppNew(appId: string, appName: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       try {
-        // Check if HiUtils_createRequest is available
-        const windowObj = window as unknown as Record<string, unknown>;
-        if (typeof windowObj['HiUtils_createRequest'] !== 'function') {
-          const errorMsg =
-            'HiUtils_createRequest is not available on this device';
+        const HiUtils_createRequest = this.getHiUtilsFunction();
+        if (!HiUtils_createRequest) {
+          const errorMsg = `${HIUTILS_FUNCTION_NAME} is not available on this device`;
           this.consoleService.addLog(errorMsg, 'error');
           reject(new Error(errorMsg));
           return;
         }
 
-        const HiUtils_createRequest = windowObj['HiUtils_createRequest'] as (
-          action: string,
-          params: Record<string, unknown>
-        ) => { ret: boolean; msg: string };
-
         // Read existing app list from system storage
         const current = HiUtils_createRequest('fileRead', {
-          path: 'websdk/Appinfo.json',
-          mode: 6,
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
         });
 
         if (!current.ret) {
@@ -247,8 +251,8 @@ export class AppManagementService {
 
         // Write the updated list back to the system file
         const result = HiUtils_createRequest('fileWrite', {
-          path: 'websdk/Appinfo.json',
-          mode: 6,
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
           writedata: JSON.stringify(apps),
         });
 
@@ -317,12 +321,23 @@ export class AppManagementService {
   }
 
   /**
+   * Get the HiUtils_createRequest function from the window object
+   * @returns The function if available, null otherwise
+   */
+  private getHiUtilsFunction(): HiUtilsCreateRequestFn | null {
+    const windowObj = window as unknown as Record<string, unknown>;
+    if (typeof windowObj[HIUTILS_FUNCTION_NAME] === 'function') {
+      return windowObj[HIUTILS_FUNCTION_NAME] as HiUtilsCreateRequestFn;
+    }
+    return null;
+  }
+
+  /**
    * Check if the new installation method is available
    * @returns true if HiUtils_createRequest is available
    */
   isNewMethodAvailable(): boolean {
-    const windowObj = window as unknown as Record<string, unknown>;
-    return typeof windowObj['HiUtils_createRequest'] === 'function';
+    return this.getHiUtilsFunction() !== null;
   }
 
   /**

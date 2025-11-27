@@ -9,6 +9,20 @@ import { environment } from '../../../environments/environment';
 
 type InstallMethod = 'auto' | 'legacy' | 'new';
 
+// Default placeholder icon when no icon URL is provided
+const DEFAULT_ICON_URL = '/favicon.ico';
+
+// Element IDs for focus management
+enum FocusableElement {
+  AppId = 'appId',
+  AppName = 'appName',
+  AppUrl = 'appUrl',
+  IconUrl = 'iconUrl',
+  Method = 'method',
+  InstallBtn = 'installBtn',
+  UninstallBtn = 'uninstallBtn',
+}
+
 @Component({
   selector: 'app-installer',
   standalone: true,
@@ -30,7 +44,7 @@ export class InstallerComponent implements OnInit {
 
   // Focus management for TV remote navigation
   focusedElement = 0;
-  focusableElements = ['appId', 'appName', 'appUrl', 'iconUrl', 'method', 'installBtn', 'uninstallBtn'];
+  readonly focusableElements = Object.values(FocusableElement);
 
   // Method availability
   legacyAvailable = false;
@@ -131,6 +145,18 @@ export class InstallerComponent implements OnInit {
     return !!(this.appId?.trim() && this.appName?.trim() && this.appUrl?.trim());
   }
 
+  /**
+   * Get the icon URL to use for installation.
+   * Returns the user-provided icon URL if valid, otherwise uses a default placeholder.
+   */
+  private getIconUrl(): string {
+    const trimmedIcon = this.iconUrl?.trim();
+    if (trimmedIcon && (trimmedIcon.startsWith('http://') || trimmedIcon.startsWith('https://'))) {
+      return trimmedIcon;
+    }
+    return DEFAULT_ICON_URL;
+  }
+
   async installApp(): Promise<void> {
     if (!this.isFormValid()) {
       this.toastr.error('Please fill in App ID, App Name, and App URL.');
@@ -147,7 +173,7 @@ export class InstallerComponent implements OnInit {
 
     try {
       let success = false;
-      const icon = this.iconUrl?.trim() || this.appUrl;
+      const icon = this.getIconUrl();
 
       if (this.installMethod === 'auto') {
         // Try new method first, then fall back to legacy

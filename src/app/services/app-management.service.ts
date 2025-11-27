@@ -1,6 +1,45 @@
 import { Injectable } from '@angular/core';
 import { ConsoleService } from './console.service';
 
+export interface AppEntry {
+  Id: string;
+  AppName: string;
+  Title: string;
+  URL: string;
+  StartCommand: string;
+  IconURL: string;
+  Icon_96: string;
+  Image: string;
+  Thumb: string;
+  Type: string;
+  InstallTime: string;
+  RunTimes: number;
+  StoreType: string;
+  PreInstall: boolean;
+}
+
+export interface AppInfoFile {
+  AppInfo: AppEntry[];
+}
+
+// Constants for HiUtils API
+const HIUTILS_FUNCTION_NAME = 'HiUtils_createRequest';
+const APPINFO_PATH = 'websdk/Appinfo.json';
+const APPINFO_MODE = 6;
+
+// Type for HiUtils_createRequest function
+type HiUtilsCreateRequestFn = (
+  action: string,
+  params: Record<string, unknown>
+) => { ret: boolean; msg: string };
+
+/**
+ * Get current date in YYYY-MM-DD format for InstallTime
+ */
+function getInstallDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -8,7 +47,7 @@ export class AppManagementService {
   constructor(private consoleService: ConsoleService) {}
 
   /**
-   * Installs an app using Hisense_installApp API
+   * Installs an app using Hisense_installApp API (Legacy Method)
    * @param appId Unique ID for the app
    * @param appName Name of the app
    * @param thumbnail URL for the app thumbnail
@@ -18,7 +57,7 @@ export class AppManagementService {
    * @param storeType Store type (e.g., "store")
    * @returns A promise that resolves to true if the installation succeeds or false if it fails
    */
-  installApp(
+  installAppLegacy(
     appId: string,
     appName: string,
     thumbnail: string,
@@ -71,12 +110,181 @@ export class AppManagementService {
   }
 
   /**
-   * Uninstalls an app on a Hisense TV.
+   * Installs an app using the new method (HiUtils_createRequest with file system access)
+   * This writes directly to the system's Appinfo.json file
+   * @param appId Unique ID for the app
+   * @param appName Name of the app
+   * @param appUrl URL to the app
+   * @param iconUrl URL for the app icon
+   * @returns A promise that resolves to true if the installation succeeds or false if it fails
+   */
+  installAppNew(
+    appId: string,
+    appName: string,
+    appUrl: string,
+    iconUrl: string
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      try {
+        const HiUtils_createRequest = this.getHiUtilsFunction();
+        if (!HiUtils_createRequest) {
+          const errorMsg = `${HIUTILS_FUNCTION_NAME} is not available on this device`;
+          this.consoleService.addLog(errorMsg, 'error');
+          reject(new Error(errorMsg));
+          return;
+        }
+
+        // Read existing app list from system storage
+        const current = HiUtils_createRequest('fileRead', {
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
+        });
+
+        // Parse JSON if it exists, otherwise create an empty structure
+        const apps: AppInfoFile = current.ret
+          ? JSON.parse(current.msg)
+          : { AppInfo: [] };
+
+        // Define the new app entry
+        const newApp: AppEntry = {
+          Id: appId,
+          AppName: appName,
+          Title: appName,
+          URL: appUrl,
+          StartCommand: appUrl,
+          IconURL: iconUrl,
+          Icon_96: iconUrl,
+          Image: iconUrl,
+          Thumb: iconUrl,
+          Type: 'Browser',
+          InstallTime: getInstallDate(),
+          RunTimes: 0,
+          StoreType: 'custom',
+          PreInstall: false,
+        };
+
+        // Update existing entry or add a new one
+        const index = apps.AppInfo.findIndex((a) => a.Id === newApp.Id);
+        if (index >= 0) {
+          apps.AppInfo[index] = newApp;
+        } else {
+          apps.AppInfo.push(newApp);
+        }
+
+        // Write the updated list back to the system file
+        const result = HiUtils_createRequest('fileWrite', {
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
+          writedata: JSON.stringify(apps),
+        });
+
+        if (result.ret) {
+          this.consoleService.addLog(
+            `Installation succeeded for ${appName} (new method)`
+          );
+          resolve(true);
+        } else {
+          this.consoleService.addLog(
+            `Installation failed for ${appName} (new method): ${result.msg}`,
+            'error'
+          );
+          resolve(false);
+        }
+      } catch (error) {
+        this.consoleService.addLog(
+          `Installation failed for ${appName}: ${error}`,
+          'error'
+        );
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Uninstalls an app using the new method (HiUtils_createRequest with file system access)
+   * This removes the app entry from the system's Appinfo.json file
    * @param appId Unique ID of the app to uninstall
    * @param appName Name of the app (used for logging)
    * @returns A promise that resolves to true if the uninstallation was successful, or false otherwise
    */
-  uninstallApp(appId: string, appName: string): Promise<boolean> {
+  uninstallAppNew(appId: string, appName: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      try {
+        const HiUtils_createRequest = this.getHiUtilsFunction();
+        if (!HiUtils_createRequest) {
+          const errorMsg = `${HIUTILS_FUNCTION_NAME} is not available on this device`;
+          this.consoleService.addLog(errorMsg, 'error');
+          reject(new Error(errorMsg));
+          return;
+        }
+
+        // Read existing app list from system storage
+        const current = HiUtils_createRequest('fileRead', {
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
+        });
+
+        if (!current.ret) {
+          this.consoleService.addLog(
+            `Cannot read app list for uninstallation`,
+            'error'
+          );
+          resolve(false);
+          return;
+        }
+
+        // Parse JSON
+        const apps: AppInfoFile = JSON.parse(current.msg);
+
+        // Find and remove the app entry
+        const index = apps.AppInfo.findIndex((a) => a.Id === appId);
+        if (index < 0) {
+          this.consoleService.addLog(
+            `App ${appName} not found in installed apps`,
+            'error'
+          );
+          resolve(false);
+          return;
+        }
+
+        apps.AppInfo.splice(index, 1);
+
+        // Write the updated list back to the system file
+        const result = HiUtils_createRequest('fileWrite', {
+          path: APPINFO_PATH,
+          mode: APPINFO_MODE,
+          writedata: JSON.stringify(apps),
+        });
+
+        if (result.ret) {
+          this.consoleService.addLog(
+            `Uninstallation succeeded for ${appName} (new method)`
+          );
+          resolve(true);
+        } else {
+          this.consoleService.addLog(
+            `Uninstallation failed for ${appName} (new method): ${result.msg}`,
+            'error'
+          );
+          resolve(false);
+        }
+      } catch (error) {
+        this.consoleService.addLog(
+          `Uninstallation failed for ${appName}: ${error}`,
+          'error'
+        );
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Uninstalls an app on a Hisense TV (Legacy Method).
+   * @param appId Unique ID of the app to uninstall
+   * @param appName Name of the app (used for logging)
+   * @returns A promise that resolves to true if the uninstallation was successful, or false otherwise
+   */
+  uninstallAppLegacy(appId: string, appName: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       try {
         // Check if Hisense_uninstallApp is available
@@ -110,5 +318,33 @@ export class AppManagementService {
         reject(error);
       }
     });
+  }
+
+  /**
+   * Get the HiUtils_createRequest function from the window object
+   * @returns The function if available, null otherwise
+   */
+  private getHiUtilsFunction(): HiUtilsCreateRequestFn | null {
+    const windowObj = window as unknown as Record<string, unknown>;
+    if (typeof windowObj[HIUTILS_FUNCTION_NAME] === 'function') {
+      return windowObj[HIUTILS_FUNCTION_NAME] as HiUtilsCreateRequestFn;
+    }
+    return null;
+  }
+
+  /**
+   * Check if the new installation method is available
+   * @returns true if HiUtils_createRequest is available
+   */
+  isNewMethodAvailable(): boolean {
+    return this.getHiUtilsFunction() !== null;
+  }
+
+  /**
+   * Check if the legacy installation method is available
+   * @returns true if Hisense_installApp is available
+   */
+  isLegacyMethodAvailable(): boolean {
+    return typeof Hisense_installApp !== 'undefined';
   }
 }

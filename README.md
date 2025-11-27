@@ -1,18 +1,6 @@
 # VidaaEdge - VIDAA TV Development & Remote Control Toolkit
 
-## For Firmware Version >= v0000.08
-Use the remote console to install custom PWAs
-
-prerequisite:
-- local DNS-Server set dev env. to vidaahub.com
-- clone vidaa edge & run dev-server ```npx node dev-server.js```
-- on your tv open: vidaahub.com
-- start remote console
-- after a successfuly connection, execute custom code from https://github.com/PhasedGapple/HiZ-Store/issues/1#issuecomment-3441402418 (insert instance informations use .png, not .ico)
-
-
-------------------------
-A development toolkit for VidaaOS-based TVs enabling remote function exploration, custom JavaScript execution, and app installation.
+A development toolkit for VidaaOS-based TVs enabling remote function exploration, custom JavaScript execution, and PWA installation.
 
 **Status:** Development toolkit - use at your own risk.
 
@@ -24,28 +12,16 @@ A development toolkit for VidaaOS-based TVs enabling remote function exploration
 
 ---
 
-## New
-
-This fork extends the original VidaaEdge project with enhanced JavaScript execution and exploration capabilities:
-
-- **Remote Command Execution:** Control TV functions from your laptop with real-time feedback
-- **Persistent History:** Command history stored across sessions with expandable results
-- **Source Code Explorer:** Extract and inspect actual function implementations
-- **Enhanced Custom Code Editor:** Full-screen editor with smart parameter templates
-
-### Known Limitations & TODOs
-
-- **App Installation:**
-  - Some TVs missing required functions, somehow not injected
-  - Investigate `Hisense_installApp_V2` implementation differences
-  - Test compatibility across TV models
-- **File System Explorer:** Auto-scan from known paths to discover mounts/directory/files structure
-- **Phoenix Services:** Understand `phoenix://service/*` architecture and endpoints
-- **Debug Access:** Enable UART/debug mode for deeper system access
-
----
-
 ## Features
+
+### PWA Installer (TV-OS Optimized)
+
+- **Unified installation interface** with TV remote-friendly navigation
+- **Dual installation methods:**
+  - **Legacy:** Uses Hisense's official `installApp` API
+  - **New:** Writes directly to system `Appinfo.json` via `HiUtils_createRequest`
+- **Auto-detection** of available installation methods
+- **Keyboard/remote navigation** support with arrow keys
 
 ### Remote Function Execution
 
@@ -61,30 +37,57 @@ This fork extends the original VidaaEdge project with enhanced JavaScript execut
 - One-click copy to custom code editor
 - Category-based organization and search
 
-### App Management
+### File System Explorer
 
-- Install Progressive Web Apps (Jellyfin, Twitch, Vevo, etc.)
-- Custom self-hosted application deployment
+- Browse TV file system remotely
+- Read file contents via `Hisense_FileRead`
+- Session persistence for scan results
+
+---
 
 ## Quick Start
 
-### 1. Start Development Server
+### 1. Install Dependencies
 
 ```bash
-npx node dev-server.js
+npm install
 ```
 
-### 2. Configure DNS
+### 2. Start Development Server
 
-Point `vidaahub.com` to your laptop IP via DNS server or DNS spoofing.
+```bash
+npm start
+```
 
-### 3. Access on TV
+This starts both the API server (port 3000) and Angular dev server (port 443) concurrently.
 
-Open `https://vidaahub.com/` in TV browser - function scanning starts automatically.
+### 3. Configure DNS
 
-### 4. Control from Laptop
+Point `vidaahub.com` to your laptop IP via DNS server or hosts file.
 
-Open `https://vidaahub.com/` on laptop - execute functions and run custom JavaScript.
+### 4. Access on TV
+
+Open `https://vidaahub.com/` in your TV's browser.
+
+### 5. Install PWAs
+
+Use the installer interface to add custom progressive web apps to your TV.
+
+---
+
+## NPM Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start both API server and Angular dev server |
+| `npm run api` | Start only API server (port 3000) |
+| `npm run serve` | Start only Angular dev server (port 443) |
+| `npm run build` | Build for production |
+| `npm run build:prod` | Build for production (explicit) |
+| `npm test` | Run tests |
+| `npm run lint` | Run linter |
+
+---
 
 ## Architecture
 
@@ -92,78 +95,107 @@ Open `https://vidaahub.com/` on laptop - execute functions and run custom JavaSc
 TV (Scanner)              Development Server          Laptop (Controller)
 ├── Discover Functions →  ├── Command Queue      ←    ├── Execute Functions
 ├── Poll for Commands  ←  ├── Result Storage     →    ├── Custom JS Editor
-└── Send Results       →  └── Function Registry       └── Command History
+└── Send Results       →  └── Function Registry       └── PWA Installer
 ```
 
-## Key Capabilities
+---
 
-### Custom JavaScript Execution
-
-- Full JavaScript environment on TV
-- Automatic function wrapping with call templates
-- Smart parameter placeholders (callbacks, paths, etc.)
-
-### Function Exploration
-
-- Source code inspection via toString()
-- Parameter signature detection
-- Native vs. implemented function identification
-- Export as TypeScript definitions
-
-### Command History
-
-- LocalStorage persistence across sessions
-- Expandable results for long output
-- Custom code snippet display
-- Individual item deletion
-
-## API Endpoints
-
-- `POST /api/functions` - Upload function list
-- `GET /api/functions` - Retrieve functions
-- `POST /api/remote-command` - Queue command
-- `GET /api/remote-command` - Poll for commands
-- `POST /api/execute-response` - Submit result
-- `GET /api/execute-response/:id` - Retrieve result
-
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 vidaa-edge/
-├── dev-server.js              # Express API server
+├── server/                         # Backend API server
+│   ├── api-server.js               # Express API server
+│   ├── LoggingService.js           # Command logging
+│   └── TimingTrackerService.js     # Performance tracking
 ├── src/
 │   ├── app/
 │   │   ├── components/
-│   │   │   ├── controller-console/  # Remote controller UI
-│   │   │   └── tv-scanner/          # TV function scanner
+│   │   │   ├── controller-console/ # Remote controller UI
+│   │   │   ├── tv-scanner/         # TV function scanner
+│   │   │   ├── file-explorer/      # File system browser
+│   │   │   └── remote-console/     # Remote command console
 │   │   ├── services/
-│   │   │   └── tv-communication.service.ts  # HTTP API client
+│   │   │   ├── app-management.service.ts  # PWA installation
+│   │   │   └── tv-command.service.ts      # TV communication
 │   │   └── pages/
-│   │       ├── documentation/       # User documentation
-│   │       └── start/              # App installation
+│   │       └── installer/          # PWA installer UI
 │   └── environments/               # Config files
-└── public/                        # Generated function files
+├── public/                         # Static assets
+└── scan-data/                      # Session persistence
 ```
+
+---
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/functions` | POST | Upload function list from TV |
+| `/api/functions` | GET | Retrieve discovered functions |
+| `/api/remote-command` | POST | Queue command for TV |
+| `/api/remote-command` | GET | Poll for pending commands |
+| `/api/execute-response` | POST | Submit command result |
+| `/api/execute-response/:id` | GET | Retrieve command result |
+| `/api/scan/session/save` | POST | Save scan session |
+| `/api/scan/sessions` | GET | List all sessions |
+| `/api/scan/session/load/:id` | GET | Load session data |
+
+---
+
+## Installation Methods
+
+### Legacy Method (Hisense API)
+Uses `Hisense_installApp` function when available:
+```javascript
+Hisense_installApp(appId, appName, thumbnail, iconSmall, iconBig, appUrl, storeType, callback);
+```
+
+### New Method (File System)
+Writes directly to system `Appinfo.json` using `HiUtils_createRequest`:
+```javascript
+HiUtils_createRequest('fileWrite', {
+  path: 'websdk/Appinfo.json',
+  mode: 6,
+  writedata: JSON.stringify(apps)
+});
+```
+
+The installer auto-detects which methods are available on your TV.
+
+---
 
 ## Security Considerations
 
 - **Local Network Only:** Designed for development on trusted networks
 - **HTTPS Required:** TV browsers require secure connection
-- **Self-signed Certs:** Included for HTTPS support
+- **Self-signed Certs:** Included in `certs/` for HTTPS support
 - **Custom Code Execution:** Allows arbitrary JavaScript on TV
-- **File System Access:** Can read files via `Hisense_FileRead`
+- **File System Access:** Can read/write files via Hisense APIs
 
-## Documentation
+---
 
-API references:
+## Known Limitations
+
+- **App Installation:** Some TVs may be missing required functions
+- **Firmware Dependent:** Features vary by TV model and firmware version
+- **DNS Required:** Must spoof `vidaahub.com` domain to access Hisense APIs
+
+---
+
+## References
+
 - **BananaMafia Research:** [Original exploit analysis](https://bananamafia.dev/post/hisensehax/)
+- **GitHub Repository:** [weinzii/vidaa-edge](https://github.com/weinzii/vidaa-edge)
+
+---
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+---
+
 ## Disclaimer
 
-This is an experimental development toolkit. Use at your own risk. Not endorsed by VidaaOS, Hisense, or any TV manufacturer. Only test on devices you own."
+This is an experimental development toolkit. Use at your own risk. Not endorsed by VidaaOS, Hisense, or any TV manufacturer. Only test on devices you own.

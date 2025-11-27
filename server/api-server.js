@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * VIDAA Edge Development Server
+ * VIDAA Edge API Server
  * Provides API endpoints for TV-Controller communication
  */
 
-const { exec } = require('child_process');
 const express = require('express');
-const fs = require('fs').promises;
+const fsPromises = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 
 // === SERVICES ===
-const loggingService = require('./services/LoggingService');
-const timingTracker = require('./services/TimingTrackerService');
+const loggingService = require('./LoggingService');
+const timingTracker = require('./TimingTrackerService');
 
 // === STATE MANAGEMENT ===
 let storedFunctions = [];
@@ -105,22 +105,19 @@ apiApp.post('/api/save-to-public', (req, res) => {
     });
   }
 
-  const fs = require('fs');
-  const path = require('path');
-
   try {
-    const publicDir = path.join(__dirname, 'public');
+    const publicDir = path.join(__dirname, '..', 'public');
     const savedFiles = [];
 
     // Ensure public directory exists
-    if (!fs.existsSync(publicDir)) {
-      fs.mkdirSync(publicDir, { recursive: true });
+    if (!fsSync.existsSync(publicDir)) {
+      fsSync.mkdirSync(publicDir, { recursive: true });
     }
 
     // Save each file
     files.forEach((file) => {
       const filePath = path.join(publicDir, file.filename);
-      fs.writeFileSync(filePath, file.content, 'utf8');
+      fsSync.writeFileSync(filePath, file.content, 'utf8');
       savedFiles.push(file.filename);
       console.log(`💾 Saved file: ${file.filename}`);
     });
@@ -286,7 +283,7 @@ apiApp.get('/api/execute-response/:commandId', (req, res) => {
 // === SESSION PERSISTENCE API ===
 // ============================================================================
 
-const SCAN_DATA_DIR = path.join(__dirname, 'scan-data');
+const SCAN_DATA_DIR = path.join(__dirname, '..', 'scan-data');
 
 // Utility: Send error response with proper status code
 function sendErrorResponse(res, error, context = 'Operation') {
@@ -303,7 +300,7 @@ function sendErrorResponse(res, error, context = 'Operation') {
 // Utility: Ensure scan-data directory exists
 async function ensureScanDataDir() {
   try {
-    await fs.mkdir(SCAN_DATA_DIR, { recursive: true });
+    await fsPromises.mkdir(SCAN_DATA_DIR, { recursive: true });
   } catch (error) {
     console.error('Failed to create scan-data directory:', error);
   }
@@ -472,7 +469,7 @@ apiApp.post('/api/scan/session/save', async (req, res) => {
     // Load existing session if merging
     if (action === 'merge') {
       try {
-        const content = await fs.readFile(filePath, 'utf8');
+        const content = await fsPromises.readFile(filePath, 'utf8');
         existingData = JSON.parse(content);
       } catch (error) {
         // File doesn't exist yet, treat as create
@@ -606,9 +603,9 @@ apiApp.post('/api/scan/session/save', async (req, res) => {
     }
 
     // Write to disk (minified JSON to save space)
-    await fs.writeFile(filePath, JSON.stringify(sessionData));
+    await fsPromises.writeFile(filePath, JSON.stringify(sessionData));
 
-    const stats = await fs.stat(filePath);
+    const stats = await fsPromises.stat(filePath);
     sessionData.metadata.size = formatBytes(stats.size);
 
     res.json({
@@ -635,15 +632,15 @@ apiApp.get('/api/scan/sessions', async (req, res) => {
   try {
     await ensureScanDataDir();
 
-    const files = await fs.readdir(SCAN_DATA_DIR);
+    const files = await fsPromises.readdir(SCAN_DATA_DIR);
     const sessions = [];
 
     for (const file of files) {
       if (file.endsWith('.json')) {
         try {
           const filePath = path.join(SCAN_DATA_DIR, file);
-          const stats = await fs.stat(filePath);
-          const content = await fs.readFile(filePath, 'utf8');
+          const stats = await fsPromises.stat(filePath);
+          const content = await fsPromises.readFile(filePath, 'utf8');
           const data = JSON.parse(content);
 
           sessions.push({
@@ -683,7 +680,7 @@ apiApp.get('/api/scan/sessions', async (req, res) => {
 // Helper: Load session data from file
 async function loadSessionData(sessionId) {
   const filePath = path.join(SCAN_DATA_DIR, `${sessionId}.json`);
-  const content = await fs.readFile(filePath, 'utf8');
+  const content = await fsPromises.readFile(filePath, 'utf8');
   return JSON.parse(content);
 }
 
@@ -732,7 +729,7 @@ apiApp.get('/api/scan/session/resume/:id', async (req, res) => {
 apiApp.delete('/api/scan/session/delete/:id', async (req, res) => {
   try {
     const filePath = path.join(SCAN_DATA_DIR, `${req.params.id}.json`);
-    await fs.unlink(filePath);
+    await fsPromises.unlink(filePath);
 
     console.log(`Deleted session: ${req.params.id}`);
     res.json({ success: true });
@@ -742,31 +739,14 @@ apiApp.delete('/api/scan/session/delete/:id', async (req, res) => {
 });
 
 // === SERVER STARTUP ===
-const API_PORT = 3000;
+const API_PORT = process.env.API_PORT || 3000;
+
 apiApp.listen(API_PORT, '0.0.0.0', () => {
-  console.log(`API Server running on port ${API_PORT}`);
-});
-
-console.log('Starting Angular Dev Server on port 443...');
-const ngServe = exec('nx serve --configuration=development');
-
-ngServe.stdout?.on('data', (data) => {
-  process.stdout.write(data);
-});
-
-ngServe.stderr?.on('data', (data) => {
-  process.stderr.write(data);
-});
-
-ngServe.on('close', (code) => {
-  console.log(`Angular Dev Server exited with code ${code}`);
-  process.exit(code);
+  console.log(`\n🚀 VIDAA Edge API Server running on port ${API_PORT}`);
+  console.log(`   Endpoints available at http://localhost:${API_PORT}/api/*\n`);
 });
 
 process.on('SIGINT', () => {
-  console.log('\nShutting down servers...');
-  ngServe.kill();
+  console.log('\n👋 Shutting down API server...');
   process.exit(0);
 });
-
-console.log('VIDAA Edge Dev Server started!');

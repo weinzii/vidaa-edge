@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 /**
- * VIDAA Edge Development Server
+ * VIDAA Edge API Server
  * Provides API endpoints for TV-Controller communication
  */
 
-const { exec } = require('child_process');
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
 
 // === SERVICES ===
-const loggingService = require('./services/LoggingService');
-const timingTracker = require('./services/TimingTrackerService');
+const loggingService = require('./LoggingService');
+const timingTracker = require('./TimingTrackerService');
 
 // === STATE MANAGEMENT ===
 let storedFunctions = [];
@@ -286,7 +285,7 @@ apiApp.get('/api/execute-response/:commandId', (req, res) => {
 // === SESSION PERSISTENCE API ===
 // ============================================================================
 
-const SCAN_DATA_DIR = path.join(__dirname, 'scan-data');
+const SCAN_DATA_DIR = path.join(__dirname, '..', 'scan-data');
 
 // Utility: Send error response with proper status code
 function sendErrorResponse(res, error, context = 'Operation') {
@@ -742,31 +741,14 @@ apiApp.delete('/api/scan/session/delete/:id', async (req, res) => {
 });
 
 // === SERVER STARTUP ===
-const API_PORT = 3000;
+const API_PORT = process.env.API_PORT || 3000;
+
 apiApp.listen(API_PORT, '0.0.0.0', () => {
-  console.log(`API Server running on port ${API_PORT}`);
-});
-
-console.log('Starting Angular Dev Server on port 443...');
-const ngServe = exec('nx serve --configuration=development');
-
-ngServe.stdout?.on('data', (data) => {
-  process.stdout.write(data);
-});
-
-ngServe.stderr?.on('data', (data) => {
-  process.stderr.write(data);
-});
-
-ngServe.on('close', (code) => {
-  console.log(`Angular Dev Server exited with code ${code}`);
-  process.exit(code);
+  console.log(`\n🚀 VIDAA Edge API Server running on port ${API_PORT}`);
+  console.log(`   Endpoints available at http://localhost:${API_PORT}/api/*\n`);
 });
 
 process.on('SIGINT', () => {
-  console.log('\nShutting down servers...');
-  ngServe.kill();
+  console.log('\n👋 Shutting down API server...');
   process.exit(0);
 });
-
-console.log('VIDAA Edge Dev Server started!');

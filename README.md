@@ -71,7 +71,7 @@ Open `https://vidaahub.com/` in your TV's browser.
 
 ### 5. Install PWAs
 
-Use the installer interface to add custom progressive web apps to your TV.
+Use the installer interface to add custom progressive web apps to your TV. (Restart TV after install, the installed app is now in the end of the list.)
 
 ---
 

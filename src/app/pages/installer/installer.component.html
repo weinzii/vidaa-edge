@@ -13,13 +13,13 @@
       <!-- App ID -->
       <div class="flex flex-col gap-2">
         <label for="appId" class="text-lg font-medium text-orange-400">App ID</label>
-        <input 
-          id="appId" 
-          [(ngModel)]="appId" 
-          type="text" 
+        <input
+          id="appId"
+          [(ngModel)]="appId"
+          type="text"
           placeholder="e.g., jellyfin-web"
           (focus)="setFocusedElement(0)"
-          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all"
         />
         <span class="text-sm text-gray-500">Unique identifier for the app (no spaces)</span>
       </div>
@@ -27,13 +27,13 @@
       <!-- App Name -->
       <div class="flex flex-col gap-2">
         <label for="appName" class="text-lg font-medium text-orange-400">App Name</label>
-        <input 
-          id="appName" 
-          [(ngModel)]="appName" 
-          type="text" 
+        <input
+          id="appName"
+          [(ngModel)]="appName"
+          type="text"
           placeholder="e.g., Jellyfin"
           (focus)="setFocusedElement(1)"
-          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all"
         />
         <span class="text-sm text-gray-500">Display name shown on TV</span>
       </div>
@@ -41,27 +41,27 @@
       <!-- App URL -->
       <div class="flex flex-col gap-2">
         <label for="appUrl" class="text-lg font-medium text-orange-400">App URL</label>
-        <input 
-          id="appUrl" 
-          [(ngModel)]="appUrl" 
-          type="text" 
-          placeholder="e.g., https://jellyfin.example.com/web"
+        <input
+          id="appUrl"
+          [(ngModel)]="appUrl"
+          type="text"
+          placeholder="e.g., http://jellyfin.example.com/web"
           (focus)="setFocusedElement(2)"
-          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all"
         />
-        <span class="text-sm text-gray-500">Full URL to your PWA (include https://)</span>
+        <span class="text-sm text-gray-500">Full URL to your PWA (include http://)</span>
       </div>
 
       <!-- Icon URL (Optional) -->
       <div class="flex flex-col gap-2">
         <label for="iconUrl" class="text-lg font-medium text-orange-400">Icon URL <span class="text-gray-500 font-normal">(Optional)</span></label>
-        <input 
-          id="iconUrl" 
-          [(ngModel)]="iconUrl" 
-          type="text" 
+        <input
+          id="iconUrl"
+          [(ngModel)]="iconUrl"
+          type="text"
           placeholder="e.g., https://jellyfin.example.com/favicon.png"
           (focus)="setFocusedElement(3)"
-          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all" 
+          class="w-full px-4 py-4 text-xl text-gray-200 bg-customGray-light border-2 border-gray-700 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 focus:outline-none transition-all"
         />
         <span class="text-sm text-gray-500">URL to app icon (uses app URL if empty)</span>
       </div>
@@ -69,7 +69,7 @@
       <!-- Installation Method -->
       <div class="flex flex-col gap-2">
         <label for="method" class="text-lg font-medium text-orange-400">Installation Method</label>
-        <select 
+        <select
           id="method"
           [(ngModel)]="installMethod"
           (focus)="setFocusedElement(4)"
@@ -92,7 +92,7 @@
 
   <!-- Action Buttons - Large, focusable for TV remote -->
   <div class="flex flex-col sm:flex-row gap-4">
-    <button 
+    <button
       id="installBtn"
       (click)="installApp()"
       (focus)="setFocusedElement(5)"
@@ -111,7 +111,7 @@
       {{ isInstalling ? 'Installing...' : 'Install App' }}
     </button>
 
-    <button 
+    <button
       id="uninstallBtn"
       (click)="uninstallApp()"
       (focus)="setFocusedElement(6)"
@@ -127,7 +127,7 @@
   </div>
 
   <!-- Clear Form Button -->
-  <button 
+  <button
     (click)="clearForm()"
     class="py-3 px-6 text-lg text-gray-400 bg-transparent border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white focus:ring-2 focus:ring-gray-500/50 focus:outline-none transition-all"
   >
@@ -151,7 +151,7 @@
         <p><strong>Restart your TV</strong> to see the installed app on your home screen</p>
       </div>
     </div>
-    
+
     <div class="mt-4 pt-4 border-t border-purple-700">
       <h3 class="text-lg font-semibold text-purple-200 mb-2">Installation Methods</h3>
       <ul class="space-y-2 text-sm text-gray-400">
@@ -163,7 +163,7 @@
 
     <div class="mt-4 pt-4 border-t border-purple-700">
       <p class="text-sm text-gray-400">
-        <strong class="text-yellow-400">⚠️ Note:</strong> This method requires the domain to be "vidaahub.com" which is achieved via DNS configuration. 
+        <strong class="text-yellow-400">⚠️ Note:</strong> This method requires the domain to be "vidaahub.com" which is achieved via DNS configuration.
         See the project's GitHub for setup instructions.
       </p>
     </div>
@@ -181,7 +181,7 @@
       No VidaaOS device detected. This app requires a VidaaOS-based TV.
     </p>
   </div>
-  
+
   <div class="bg-customGray-light p-6 rounded-lg border border-gray-700">
     <h3 class="text-xl font-semibold text-gray-100 mb-4">How to Use This App</h3>
     <div class="space-y-4 text-gray-400">
@@ -207,10 +207,10 @@
         </div>
       </div>
     </div>
-    
+
     <div class="mt-6 pt-4 border-t border-gray-700">
       <p class="text-sm text-gray-500">
-        For setup instructions, visit the 
+        For setup instructions, visit the
         <a href="https://github.com/weinzii/vidaa-edge" target="_blank" class="text-blue-500 hover:underline">GitHub repository</a>.
       </p>
     </div>

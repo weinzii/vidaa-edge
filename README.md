@@ -25,7 +25,7 @@ A development toolkit for VidaaOS-based TVs enabling remote function exploration
 
 ### Remote Function Execution
 
-- Execute VIDAA TV functions from your laptop/PC
+- Execute VIDAA TV functions from your host
 - Custom JavaScript runner with full-screen editor
 - Real-time results with expandable views
 - Persistent command history with timestamps
@@ -63,7 +63,7 @@ This starts both the API server (port 3000) and Angular dev server (port 443) co
 
 ### 3. Configure DNS
 
-Point `vidaahub.com` to your laptop IP via DNS server or hosts file.
+Point `vidaahub.com` to your host IP via DNS server or hosts file.
 
 ### 4. Access on TV
 
@@ -92,7 +92,7 @@ Use the installer interface to add custom progressive web apps to your TV. (Rest
 ## Architecture
 
 ```
-TV (Scanner)              Development Server          Laptop (Controller)
+TV (Scanner)              Development Server          Host (Controller)
 ├── Discover Functions →  ├── Command Queue      ←    ├── Execute Functions
 ├── Poll for Commands  ←  ├── Result Storage     →    ├── Custom JS Editor
 └── Send Results       →  └── Function Registry       └── PWA Installer

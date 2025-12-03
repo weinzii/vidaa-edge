@@ -63,7 +63,7 @@ This starts both the API server (port 3000) and Angular dev server (port 443) co
 
 ### 3. Configure DNS
 
-Point `vidaahub.com` to your host IP via DNS server or hosts file.
+Point `vidaahub.com` to your host IP via DNS server/your router, pihole, adguard... you name it. :-)
 
 ### 4. Access on TV
 
